@@ -1259,7 +1259,7 @@ not a warning from a manual.
 | `with` vs `with … in eq` | Agda | A plain `with` abstracts the scrutinee away; the `ite` case needs the equation. Cost: one compile cycle.
 | Store in `soundness` | `Core.agda` | Unprovable without a framing lemma. The fragment is store-free for that reason (T1 removes the restriction properly).
 | BV vs integer | SMT | `x - 12 ≤ 2^32-1` is false for `x < 12` in BV64. Carry the no-underflow premise; the toy bug is an asserted wrong constant with goal `False`.
-| z3 Python API | `vc/gen_vcs.py` | `CheckSatResult` is unhashable; compare with `==`.
+| z3 exit status | `verify.sh` G7 | `z3 -smt2` exits 0 for **both** `sat` and `unsat`, so `$?` is not a verdict; parse the `check-sat` line.
 | SMT-LIB | `vc/*.smt2` | ASCII only; strip `—`, `→`, `∧`.
 | Mutation coverage | `canon.zig` | Operators need distinct formula/set lines; 8/11 became 11/11 only after adding two `borrow` rows and a second `requires`.
 | Extract vs hand-written Face B | `spec/` | They drifted (extra `requires`, unbound `forall`). Regenerate; never hand-patch.
