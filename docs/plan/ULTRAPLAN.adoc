@@ -111,7 +111,7 @@ digests are in `examples/atoma/frame-v1/witness/phase0.receipt.json`.
 | G5 | Face A and Face B canonicalise to the same bytes | `blake3:f5f97a7b…f265756`
 | G5 | A one-token edit diverges (equivalence is not vacuous) | `blake3:d49201f2…ffca70`
 | G6 | 11 mutation operators give 11 distinct artefacts | 11 applied, 11 distinct
-| G7 | 14 SMT obligations discharged by z3 5.3.1 | `blake3:72c74c01…5e3698`
+| G7 | 14 SMT obligations discharged by z3, 8 unsat / 6 sat | `blake3:dec3d833…9ce35d`
 | G8 | Face B is *extracted* from Zig, not hand-maintained | `blake3:ee4d77f0…eb2358`
 | G9 | The implementation is subset-clean | 6 exports, 6 contracts, 0 diagnostics
 | G10 | The subset checker is not vacuous | 20 diagnostics over 17 codes
@@ -209,10 +209,10 @@ cp -r /tmp/agda-2.7.0.1/src/data/lib/prim \
 # run everything
 export PATH=/tmp/zv15/lib/python3.11/site-packages/ziglang:$PATH
 cd examples/atoma/frame-v1
-AGDA=/tmp/zv/bin/agda PYTHON=/tmp/zv/bin/python ./verify.sh
+AGDA=/tmp/zv/bin/agda ./verify.sh
 ----
 
-Expected: twelve `ok` lines (G5 prints twice), `atoma 15 tests`, and a receipt
+Expected: twelve `ok` lines (G5 prints twice), `atoma 20 tests`, and a receipt
 whose `status` is `INCOMPLETE` and `status_class` is `Warrant`. If `agda` is not
 on `AGDA=`, G11 prints `not-run` — that is a correct outcome, not a failure, and
 the receipt says `"proof":{"status":"not-run"}`.
@@ -274,7 +274,7 @@ ones this plan adds. F0.1 is the Phase 0 entry gate that has never run.
 | G4 | `zig build-obj tools/layout_negative.zig -target wasm32…` | **fails** | exists
 | G5 | `atoma equiv spec/face-a.cspec spec/face-b.cspec` | equal digests; probe diverges | exists
 | G6 | `atoma mutate` sweep | 11/11 distinct | exists
-| G7 | `python3 vc/gen_vcs.py` | 14/14, 6 counterexamples found | exists
+| G7 | `atoma vc vc/.gen --cspec spec/face-b.cspec` + z3 | 14/14, 6 counterexamples found | exists (**was** `vc/gen_vcs.py`)
 | G8 | `atoma extract … \| hashed` | equals `spec/face-b.cspec` | exists
 | G9 | `atoma check src/frame_parse.zig` | 0 diagnostics, 6 contracts | exists
 | G10 | `atoma check fixtures/violations.zig` | **exits 1**, ≥20 diags, ≥15 codes | exists
@@ -472,7 +472,7 @@ else. A fresh clone therefore cannot run G7 or G11 without hand-built venvs, and
 carries them, otherwise as a pinned download with a recorded checksum. The
 venue matters less than the pin — `just doctor` must be able to answer PASS or
 FAIL for each, and `mise.lock` must make the answer the same on every machine.
-Add `[env]` entries for `AGDA` (and `PYTHON`, until A6 removes it) so
+Add `[env]` entries for `AGDA` so
 `verify.sh` finds them without a hand-built venv, then `just toolchain-refresh`
 to re-lock.
 
@@ -526,34 +526,50 @@ receipt is downloadable from the run.
 [[A6]]
 === A6 — Retire Python from the gate path
 
-*Status:* `todo` · *Size:* M · *Owner:* agent
+*Status:* `done` (this branch; see the postscript — the acceptance criterion was
+wrong and was replaced by a stronger one) · *Size:* M · *Owner:* agent
 
 *Why.* `mise.toml` states the estate policy — "no python, node/npm/yarn, make or
-nix here" — and `vc/gen_vcs.py` is the only thing standing between the repository
-and a self-contained `verify.sh`. It is also the VC generator, i.e. exactly the
-component the specification says must eventually live in Ada/SPARK or
+nix here" — and `vc/gen_vcs.py` was the only thing standing between the
+repository and a self-contained `verify.sh`. It was also the VC generator, i.e.
+exactly the component the specification says must eventually live in Ada/SPARK or
 Creusot-verified Rust, not in a scripting language.
 
-*Method.* Two steps, in this order:
+*Method as executed.*
 
-. Port the 14 obligations to `atoma vc <cspec> > <vc.smt2>` in Zig, reusing the
-  canonicaliser's parser. The generator is untrusted plumbing (§1 of the spec),
-  so Zig is acceptable for now; the trusted path is T6.
-. Delete `vc/gen_vcs.py` and make G7 call the Zig binary. Keep the Python file in
-  git history as the independently-written reference the Zig version is diffed
-  against (differential test: same `.smt2` bytes for all 14).
+. Port the 14 obligations into `tools/atoma/src/vc.zig`, exposed as
+  `atoma vc <outdir> [--cspec FILE]`. The generator is untrusted plumbing (§1 of
+  the spec), so Zig is acceptable for now; the trusted path remains T6.
+. Delete `vc/gen_vcs.py`. G7 now runs the Zig binary, then z3, then compares each
+  verdict with the reviewed table `vc/expected.tsv`.
+. Bind the generator to the contract: `--cspec` canonicalises the contract and
+  refuses to emit anything unless the five facts the queries encode are still
+  present verbatim (`checkContract` in `vc.zig`). G7 exercises that refusal with
+  a deliberately drifted contract, so the binding cannot be vacuous.
 
-*Accept.* `./verify.sh` runs G7 with `PYTHON` unset and the 14 `.smt2` files are
-byte-identical to today's (digest `blake3:72c74c01…5e3698`).
+*Postscript — the original acceptance criterion was unachievable, and that was
+informative.* It asked for the 14 `.smt2` files to be byte-identical to the
+Python-era ones. They could not be: those files were `z3`'s `sexpr()` dump of a
+Python-built AST (`(let ((?x60 …))`) — machine-specific variable numbering, not
+reviewable text — so byte-identity would have required reproducing the dump,
+which is what the card's own falsifier forbids ("reproduces the files because it
+embeds their text"). The honest resolution was to change the artefact: the Zig
+generator emits hand-readable SMT-LIB, so the VC-set digest necessarily moved
+from `blake3:72c74c01…5e3698` to `blake3:dec3d833…9ce35d`. The obligations,
+the 8/6 unsat-sat split and every verdict are unchanged. The stale-digest check
+in G7 (`cmp` against regenerated output) is what makes this safe going forward:
+a `.smt2` in the tree that the generator would not produce is a hard failure.
 
-*Falsifier.* The Zig generator reproduces the files because it embeds their text.
-The differential test must generate from the `.cspec` alone, and a spec mutation
-must change the output.
+*Accept (as achieved).* `./verify.sh` runs G7 with no Python on PATH; 14/14
+verdicts match `vc/expected.tsv`; a drifted contract is rejected; a hand-edited
+`.smt2` fails the gate.
 
-*Note.* If the port is judged too costly now, the alternative is an explicit,
-recorded waiver in the deed naming `vc/gen_vcs.py` as an exception with a
-sunset date. Silent tolerance is not an option; I11 is "no new Python in the gate
-path", not "pretend the old Python is Zig".
+*Falsifier, re-run.* Mutating `requires ( <= 12 ( len input ) )` to `<= 11`
+stops generation with `CONTRACT-DRIFT` and exit 1. Embedding the query text
+instead of deriving it would still pass the `cmp` check — the residual weakness,
+recorded here rather than hidden: the queries are derived from the *contract
+facts*, but the obligations themselves are still hand-derived from §7, not
+computed from a core IR. T6 is where that gap closes.
 
 [[A7]]
 === A7 — Reconcile the estate status records with the claims ledger
@@ -1168,7 +1184,7 @@ Run the gates, confirm the baseline, and claim one card:
 ----
 export PATH=/tmp/zv15/lib/python3.11/site-packages/ziglang:$PATH
 cd examples/atoma/frame-v1
-AGDA=/tmp/zv/bin/agda PYTHON=/tmp/zv/bin/python ./verify.sh
+AGDA=/tmp/zv/bin/agda ./verify.sh
 cat witness/phase0.receipt.json
 ----
 

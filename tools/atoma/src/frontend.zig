@@ -210,7 +210,7 @@ fn collectDecls(alloc: Allocator, ast: Ast, report: *Report) !std.ArrayListUnman
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Banned-construct scan (§2.4)
+// Banned-construct scan (§3.1: the E-* classification)
 // ─────────────────────────────────────────────────────────────────────────────
 
 const BannedBuiltin = struct { text: []const u8, code: []const u8 };

@@ -186,8 +186,8 @@ predecessors did.
 | -
 
 | `tools/`
-| yes
-| -
+| optional
+| untrusted tool sources (CLIs, generators), outside the TCB; the trusted tree is src/
 
 | `verification/`
 | optional

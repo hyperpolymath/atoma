@@ -74,6 +74,7 @@ tests/
 ?archetypes/               # template-only variation seam (ADR-0003); `just repo-init` removes it from minted repos
 ?.devcontainer/            # VS Code dev container spec; present only where the container capability is declared
 ?sonar-project.properties  # only where the repo is analysed by SonarCloud
+?tools/                    # untrusted tool sources (CLIs, generators), outside the TCB; the trusted tree is src/
 ?benches/                  # Cargo-conventional at package root
 ?examples/                 # Cargo-conventional at package root
 ?features/                 # optional feature packs

@@ -14,7 +14,8 @@
 #   G4  the `usize`-across-FFI counter-example is *rejected* on wasm32 (F0.3);
 #   G5  Face A and Face B canonicalise to the same bytes (hash-checked seam);
 #   G6  all 11 specification-mutation operators produce distinct artifacts;
-#   G7  the 14 SMT verification conditions are discharged (if z3 is present);
+#   G7  the 14 SMT verification conditions are discharged (if z3 is present),
+#       and the generator refuses to emit queries for a drifted contract;
 #   G8  the Face B contract is *extracted* from the Zig source and matches the
 #       checked-in file — the doc-comment directives are the source of truth;
 #   G9  the implementation passes the subset checker with zero diagnostics and
@@ -55,13 +56,13 @@ die() {
 
 # Count the tool's own tests instead of hard-coding a number that can drift.
 atoma_tests=0
-for m in canon frontend; do
+for m in canon frontend vc; do
     n=$("$ZIG" test "$root/tools/atoma/src/$m.zig" 2>&1 |
         sed -n 's/^All \([0-9][0-9]*\) tests passed\.$/\1/p')
     [ -n "$n" ] || die "cannot count the tests in $m.zig"
     atoma_tests=$((atoma_tests + n))
 done
-printf 'atoma %s tests (canon + frontend)\n' "$atoma_tests"
+printf 'atoma %s tests (canon + frontend + vc)\n' "$atoma_tests"
 
 cd "$here"
 
@@ -129,24 +130,67 @@ rm -f spec/.mutant.cspec spec/.probe.cspec spec/.face-a.full.cspec spec/.face-b.
 printf 'G6 ok  mutation sweep: %s applied, %s distinct artifacts\n' "$applied" "$distinct"
 
 # ── G7: SMT verification conditions ─────────────────────────────────────────
-# Optional: needs python3 + z3-solver. When it cannot run, the receipt records
-# `"smt":"not-run"` rather than claiming anything.
+# Optional: needs z3. The queries are emitted by `atoma vc`, which is *untrusted
+# plumbing* (tools/atoma/src/vc.zig): the gate does not believe the generator,
+# it runs the solver and compares the verdict with the reviewed expectation
+# table. Verdicts are read from stdout — z3 exits 0 for both sat and unsat — and
+# a disagreement of any kind fails closed.
 smt_state="not-run"
 vc_hash="none"
 vc_count=0
-PY=${PYTHON:-python3}
-if "$PY" -c 'import z3' >/dev/null 2>&1; then
-    if "$PY" vc/gen_vcs.py > witness/vc-report.txt 2>&1; then
-        vc_count=$(sed -n 's/^\([0-9][0-9]*\) VCs, 0 failing$/\1/p' witness/vc-report.txt)
-        # One content address for the whole VC set: sorted per-file hashes.
-        vc_hash=$(
-            for f in vc/*.smt2; do "$ADDR" vc-hash "$f"; done | sort | "$ADDR" vc-hash /dev/stdin
-        )
-        smt_state="discharged"
-        printf 'G7 ok  %s VCs discharged by z3 (%s)\n' "$vc_count" "$vc_hash"
-    else
-        die "G7 VC generation or discharging failed (see witness/vc-report.txt)"
-    fi
+Z3=${Z3:-z3}
+if command -v "$Z3" >/dev/null 2>&1; then
+    rm -rf vc/.gen
+    mkdir -p vc/.gen
+    "$ADDR" vc vc/.gen --cspec spec/face-b.cspec > witness/vc-report.txt 2>&1 || {
+        cat witness/vc-report.txt >&2
+        die "G7 VC generation"
+    }
+
+    # The query set is pinned to the contract. A drifted contract must stop
+    # generation — otherwise the gate would happily discharge obligations that
+    # belong to a program that no longer exists.
+    sed 's/( <= 12 ( len input ) )/( <= 11 ( len input ) )/' spec/face-b.cspec > spec/.drifted.cspec
+    drift_ok=0
+    "$ADDR" vc vc/.gen --cspec spec/.drifted.cspec >/dev/null 2>&1 && drift_ok=1
+    rm -f spec/.drifted.cspec
+    [ "$drift_ok" = 0 ] || die "G7 the generator accepted a drifted contract: its binding is vacuous"
+
+    # The committed queries must be the ones the generator emits: a hand-edited
+    # .smt2 is not evidence, so a stale artifact is a hard failure.
+    for f in vc/*.smt2; do
+        cmp -s "$f" "vc/.gen/$(basename "$f")" ||
+            die "G7 stale artifact $f: run 'atoma vc vc --cspec spec/face-b.cspec' and commit"
+    done
+    # The reviewed table carries a prose preamble; the generator's manifest does
+    # not. Compare the data lines, in order.
+    grep -v '^#' vc/expected.tsv > vc/.gen/reviewed.tsv
+    grep -v '^#' vc/.gen/manifest.tsv > vc/.gen/generated.tsv
+    cmp -s vc/.gen/reviewed.tsv vc/.gen/generated.tsv ||
+        die "G7 vc/expected.tsv differs from the reviewed generator manifest"
+
+    tab=$(printf '\t')
+    while IFS="$tab" read -r name want; do
+        case "$name" in '#'*|'') continue ;; esac
+        [ -f "vc/.gen/$name.smt2" ] || die "G7 expected VC $name is missing from the generator"
+        got=$("$Z3" -smt2 "vc/.gen/$name.smt2" 2>&1 | tail -n 1)
+        [ "$got" = "$want" ] || die "G7 $name: expected $want, z3 said $got"
+        printf '    %-32s %s\n' "$name" "$got" >> witness/vc-report.txt
+        vc_count=$((vc_count + 1))
+    done < vc/expected.tsv
+    [ "$vc_count" = 14 ] || die "G7 ran $vc_count queries, expected 14"
+
+    # One content address for the whole VC set: sorted per-file hashes.
+    vc_hash=$(
+        for f in vc/.gen/*.smt2; do "$ADDR" vc-hash "$f"; done | sort | "$ADDR" vc-hash /dev/stdin
+    )
+    saw_unsat=$(awk -F"$tab" '$2=="unsat"' vc/expected.tsv | wc -l | tr -d ' ')
+    saw_sat=$(awk -F"$tab" '$2=="sat"' vc/expected.tsv | wc -l | tr -d ' ')
+    [ "$saw_unsat" -ge 8 ] || die "G7 only $saw_unsat discharged obligations (want >= 8)"
+    [ "$saw_sat" -ge 6 ] || die "G7 only $saw_sat counterexample obligations (want >= 6)"
+    smt_state="discharged"
+    printf 'G7 ok  %s VCs discharged by z3: %s unsat, %s sat (%s)\n' \
+        "$vc_count" "$saw_unsat" "$saw_sat" "$vc_hash"
 else
     printf 'G7 --  z3 not installed: SMT obligations not discharged\n'
 fi

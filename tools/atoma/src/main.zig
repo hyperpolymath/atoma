@@ -15,6 +15,7 @@
 //   atoma mutate  <file.cspec> <op>   print one mutated specification
 //   atoma extract <file.zig> [--symbol S]     emit the Face B contract (.cspec)
 //   atoma check   <file.zig>                  subset conformance, exit 1 on E-*
+//   atoma vc      <outdir>                    emit the 14 SMT-LIB queries + manifest
 //   atoma ops                         list mutation operators
 //   atoma selftest                    run the built-in vectors
 //
@@ -24,6 +25,7 @@
 const std = @import("std");
 const canon = @import("canon.zig");
 const frontend = @import("frontend.zig");
+const vc = @import("vc.zig");
 
 const gpa = std.heap.page_allocator;
 
@@ -55,7 +57,7 @@ fn print(comptime fmt: []const u8, args: anytype) void {
 }
 
 fn usage() noreturn {
-    sayLine("usage: atoma <canon|hash|vc-hash|dk-hash|src-hash|extract|check|equiv|mutate|ops|selftest> [args]");
+    sayLine("usage: atoma <canon|hash|vc-hash|dk-hash|src-hash|extract|check|vc|equiv|mutate|ops|selftest> [args]");
     std.process.exit(2);
 }
 
@@ -197,6 +199,57 @@ pub fn main() !void {
             args[2], rep.decls, rep.exports, rep.contracts, rep.diags.items.len,
         });
         if (rep.diags.items.len != 0) std.process.exit(1);
+    } else if (std.mem.eql(u8, cmd, "vc")) {
+        if (args.len < 3) usage();
+        var cspec: ?[]const u8 = null;
+        var i: usize = 3;
+        while (i + 1 < args.len) : (i += 2) {
+            if (std.mem.eql(u8, args[i], "--cspec")) cspec = args[i + 1];
+        }
+        if (cspec) |path| {
+            const src = readFile(path) catch |e| {
+                print("cannot read {s}: {s}\n", .{ path, @errorName(e) });
+                std.process.exit(3);
+            };
+            const c = canon.canon(gpa, src) catch |e| {
+                print("cannot canonicalise {s}: {s}\n", .{ path, @errorName(e) });
+                std.process.exit(3);
+            };
+            vc.checkContract(c.bytes) catch {
+                print("CONTRACT-DRIFT {s}: the query set is pinned to a contract that changed\n", .{path});
+                sayLine("  re-derive the obligations in docs/spec/ATOMA-SPEC.adoc §8.3 before regenerating");
+                std.process.exit(1);
+            };
+        }
+        var dir = std.fs.cwd().openDir(args[2], .{}) catch |e| {
+            print("cannot open {s}: {s}\n", .{ args[2], @errorName(e) });
+            std.process.exit(3);
+        };
+        defer dir.close();
+        _ = vc.generate(gpa, dir) catch |e| {
+            print("vc generation failed: {s}\n", .{@errorName(e)});
+            std.process.exit(3);
+        };
+        // The manifest is the reviewed expectation table, emitted from the same
+        // source of truth as the queries. `verify.sh` diffs it against the
+        // checked-in `vc/expected.tsv`, so a changed expectation is a reviewed
+        // diff rather than a silent edit to the generator.
+        var buf = std.io.Writer.Allocating.init(gpa);
+        defer buf.deinit();
+        vc.writeManifest(&buf.writer) catch |e| {
+            print("cannot render manifest: {s}\n", .{@errorName(e)});
+            std.process.exit(3);
+        };
+        var mf = dir.createFile("manifest.tsv", .{}) catch |e| {
+            print("cannot write manifest: {s}\n", .{@errorName(e)});
+            std.process.exit(3);
+        };
+        defer mf.close();
+        mf.writeAll(buf.written()) catch |e| {
+            print("cannot write manifest: {s}\n", .{@errorName(e)});
+            std.process.exit(3);
+        };
+        print("{d} VCs -> {s}\n", .{ vc.vcs.len, args[2] });
     } else if (std.mem.eql(u8, cmd, "ops")) {
         for (canon.Mutation.all()) |m| print("{s}\n", .{m.name()});
     } else if (std.mem.eql(u8, cmd, "selftest")) {
@@ -250,4 +303,5 @@ pub fn main() !void {
 
 test {
     _ = canon;
+    _ = vc;
 }
