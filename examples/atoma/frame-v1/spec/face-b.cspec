@@ -1,0 +1,31 @@
+# Face B — extracted from the directives on `atoma_frame_parse`:
+#
+#     atoma extract src/frame_parse.zig --symbol atoma_frame_parse
+#
+# This file is checked in so that a reviewer can read the contract without
+# opening the Zig file, and so that gate G8 can assert that the extractor still
+# reproduces it. Do not hand-edit: edit the doc comment in frame_parse.zig and
+# re-run the extractor.
+cspec 1
+contract atoma.frame.parse
+kind extern
+abisym atoma_frame_parse
+param h W handle
+param input W slice ro u8 r0
+param input_len 0 u32
+param out 1 ptr out_frame r1
+borrow input shr r0
+borrow out mut r1
+requires ( <= 12 ( len input ) )
+requires ( = ( len input ) input_len )
+requires ( < input_len 0x100000000 )
+requires ( or ( = h null ) ( = ( tag h ) 0x41544D31 ) )
+ensures ( => ( = res 0 ) ( = ( magic out ) 0x5441 ) )
+ensures ( => ( = res 0 ) ( <= ( payload_len out ) ( - ( len input ) 12 ) ) )
+ensures ( => ( != res 0 ) ( zeroed out ) )
+ensures ( = ( pad out ) 0 )
+assigns r1
+cap Write r1
+cap Read r0
+bound steps ( + 12 ( * 8 input_len ) )
+bound hwm 64

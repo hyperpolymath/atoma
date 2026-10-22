@@ -1,0 +1,18 @@
+// SPDX-License-Identifier: CC-BY-SA-4.0
+// SPDX-FileCopyrightText: 2026 Jonathan D.A. Jewell <j.d.a.jewell@open.ac.uk>
+= Specification
+
+[cols="2,4", options="header"]
+|===
+| Document | Contents
+
+| link:ATOMA-SPEC.adoc[ATOMA-SPEC]
+| The design specification: Core Spec IR, the two contract faces, the verifiable
+  Zig subset, frontend extraction, the VC and certificate pipeline, the worked
+  example, and the phased roadmap with falsifiers and non-claims.
+|===
+
+Start with the *claims ledger* at the top of `ATOMA-SPEC.adoc`: it states which
+of the document's own claims are machine-checked in this repository and which are
+specified only. The executable counterpart of the specification is
+`examples/atoma/frame-v1/`, whose `verify.sh` is the Phase 0 gate.

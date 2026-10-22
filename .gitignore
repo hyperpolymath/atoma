@@ -95,6 +95,7 @@ sync_report*.txt
 # Hypatia scan cache (local-only)
 .hypatia/
 .zig-cache/
+zig-out/
 target/
 node_modules/
 _build/
@@ -142,5 +143,6 @@ verification/proofs/coq/*.vos
 verification/proofs/coq/*.glob
 verification/proofs/coq/.*.aux
 # Agda compiled proof artifacts
+*.agdai
 verification/proofs/agda/*.agdai
 

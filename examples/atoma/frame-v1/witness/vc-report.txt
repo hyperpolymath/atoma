@@ -1,0 +1,22 @@
+VC                            want   z3           meaning
+V1_no_underflow               unsat  unsat  ok    `buf.len - 12` cannot wrap once len >= 12 is known
+V1_needle_drop_requires       sat    sat    ok    without `len >= 12` the subtraction underflows: model is the panic
+                              model: buf_len=0
+V2_slice_in_bounds            unsat  unsat  ok    12 + length <= buf.len, so buf[12 .. 12+length] is in bounds
+V2_needle_drop_payload_bound  sat    sat    ok    a frame claiming more bytes than the buffer holds slices out of bounds
+                              model: buf_len=12, length=1
+V2_mutant_off_by_one          sat    sat    ok    `avail + 1` admits exactly one byte past the end: off-by-one
+                              model: buf_len=2147483647, length=2147483636
+V3_intcast_range              unsat  unsat  ok    a slice obtained from a u32 in_len is at most 2^32-1 bytes and at least 12, so the usize-to-u32 @intCast cannot trap
+V3_needle_drop_ffi_bound      sat    sat    ok    called directly with a >4GiB slice, the same @intCast panics
+                              model: buf_len_usize=18446744069414584332
+V4_maxplus_bound              unsat  unsat  ok    8 steps per payload byte; worst case 8*65535+12 < 2^32 so the MaxPlus bound is representable in the cost domain
+V5_magic_wire_order           unsat  unsat  ok    bytes 'A','T' decode to 0x5441; the 'obvious' 0x4154 would put 'T','A' on the wire
+V5_mutant_wrong_endian        unsat  unsat  ok    0x4154 is refuted by the same bytes: the literal ASCII word is wrong
+V6_padding_zeroed             unsat  unsat  ok    writes hit only field bytes, so every padding byte keeps the 0x00 it got from zeroBytes
+V6_mutant_offset_drift        sat    sat    ok    a payload placed at offset 12 writes into the padding hole 12..16: the padding VC catches layout drift
+V7_post_payload_len           unsat  unsat  ok    the success postcondition follows from the guard that produced success
+V8_premise_satisfiable        sat    sat    ok    a contradictory precondition would make every VC trivially UNSAT, so satisfiability of the premises is a VC in its own right
+                              model: buf_len=0
+
+14 VCs, 0 failing

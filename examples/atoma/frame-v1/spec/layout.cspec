@@ -1,0 +1,60 @@
+field FrameHeader@x86_64 0 2 2 magic u16
+field FrameHeader@x86_64 2 2 2 length u16
+field FrameHeader@x86_64 4 1 1 flags u8
+field FrameHeader@x86_64 5 1 1 tag u8
+field FrameHeader@x86_64 8 4 4 crc u32
+field FrameHeader@x86_64 12 2 2 reserved u16
+layout FrameHeader@x86_64 16 4 6..8,14..16
+field FrameOut@x86_64 0 2 2 magic u16
+field FrameOut@x86_64 2 2 2 length u16
+field FrameOut@x86_64 4 1 1 flags u8
+field FrameOut@x86_64 5 1 1 tag u8
+field FrameOut@x86_64 8 4 4 crc u32
+field FrameOut@x86_64 16 8 8 payload [*]const u8
+field FrameOut@x86_64 24 4 4 payload_len u32
+layout FrameOut@x86_64 32 8 6..8,12..16,28..32
+field FrameHeader@aarch64 0 2 2 magic u16
+field FrameHeader@aarch64 2 2 2 length u16
+field FrameHeader@aarch64 4 1 1 flags u8
+field FrameHeader@aarch64 5 1 1 tag u8
+field FrameHeader@aarch64 8 4 4 crc u32
+field FrameHeader@aarch64 12 2 2 reserved u16
+layout FrameHeader@aarch64 16 4 6..8,14..16
+field FrameOut@aarch64 0 2 2 magic u16
+field FrameOut@aarch64 2 2 2 length u16
+field FrameOut@aarch64 4 1 1 flags u8
+field FrameOut@aarch64 5 1 1 tag u8
+field FrameOut@aarch64 8 4 4 crc u32
+field FrameOut@aarch64 16 8 8 payload [*]const u8
+field FrameOut@aarch64 24 4 4 payload_len u32
+layout FrameOut@aarch64 32 8 6..8,12..16,28..32
+field FrameHeader@riscv64 0 2 2 magic u16
+field FrameHeader@riscv64 2 2 2 length u16
+field FrameHeader@riscv64 4 1 1 flags u8
+field FrameHeader@riscv64 5 1 1 tag u8
+field FrameHeader@riscv64 8 4 4 crc u32
+field FrameHeader@riscv64 12 2 2 reserved u16
+layout FrameHeader@riscv64 16 4 6..8,14..16
+field FrameOut@riscv64 0 2 2 magic u16
+field FrameOut@riscv64 2 2 2 length u16
+field FrameOut@riscv64 4 1 1 flags u8
+field FrameOut@riscv64 5 1 1 tag u8
+field FrameOut@riscv64 8 4 4 crc u32
+field FrameOut@riscv64 16 8 8 payload [*]const u8
+field FrameOut@riscv64 24 4 4 payload_len u32
+layout FrameOut@riscv64 32 8 6..8,12..16,28..32
+field FrameHeader@wasm32 0 2 2 magic u16
+field FrameHeader@wasm32 2 2 2 length u16
+field FrameHeader@wasm32 4 1 1 flags u8
+field FrameHeader@wasm32 5 1 1 tag u8
+field FrameHeader@wasm32 8 4 4 crc u32
+field FrameHeader@wasm32 12 2 2 reserved u16
+layout FrameHeader@wasm32 16 4 6..8,14..16
+field FrameOut@wasm32 0 2 2 magic u16
+field FrameOut@wasm32 2 2 2 length u16
+field FrameOut@wasm32 4 1 1 flags u8
+field FrameOut@wasm32 5 1 1 tag u8
+field FrameOut@wasm32 8 4 4 crc u32
+field FrameOut@wasm32 12 4 4 payload [*]const u8
+field FrameOut@wasm32 16 4 4 payload_len u32
+layout FrameOut@wasm32 20 4 6..8

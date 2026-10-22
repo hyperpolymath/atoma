@@ -1,0 +1,21 @@
+fixtures/violations.zig:17: E-GLOBAL-VAR: global_counter
+fixtures/violations.zig:20: E-ABI-PACKED: packed
+fixtures/violations.zig:39: E-PTR-C: [*c]
+fixtures/violations.zig:46: E-PTR-CAST: @ptrCast
+fixtures/violations.zig:48: E-PTR-INT: @ptrFromInt
+fixtures/violations.zig:55: E-ASM: asm
+fixtures/violations.zig:55: E-VOLATILE: volatile
+fixtures/violations.zig:57: E-UNREACHABLE: unreachable
+fixtures/violations.zig:59: E-PANIC: @panic
+fixtures/violations.zig:64: E-ALLOC-AMBIENT: c_allocator
+fixtures/violations.zig:70: E-CIMPORT: @cImport
+fixtures/violations.zig:75: E-OPTIONAL-UNWRAP: .?
+fixtures/violations.zig:80: E-SAFETY-OFF: @setRuntimeSafety
+fixtures/violations.zig:27: E-ABI-WIDTH: usize
+fixtures/violations.zig:27: E-ABI-WIDTH: bool
+fixtures/violations.zig:27: E-ABI-WIDTH: anyopaque
+fixtures/violations.zig:34: E-ABI-UNION: extern union
+fixtures/violations.zig:89: E-ABI-CALLCONV: wrong_spelling
+fixtures/violations.zig:84: E-UNCONTRACTED-EXPORT: naked_export
+fixtures/violations.zig:89: E-UNCONTRACTED-EXPORT: wrong_spelling
+fixtures/violations.zig: 17 declarations, 2 exports, 0 contracts, 20 diagnostics

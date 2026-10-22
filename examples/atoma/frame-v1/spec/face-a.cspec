@@ -1,0 +1,30 @@
+# Face A — the Idris2 contract, transcribed from what `encode frameParse`
+# prints (gate F0.1 replaces this transcription with the extractor's bytes).
+#
+# Deliberate surface differences from Face B, all erased by canonicalisation:
+#   * hex literals and a different binder name in the forall (R4/R5)
+#   * caps listed in the other order (R6 sorts set-valued lines)
+#   * block comments and blank lines (R1)
+cspec 1
+contract atoma.frame.parse
+kind extern
+abisym atoma_frame_parse
+param h W handle
+param input W slice ro u8 r0
+param input_len 0 u32
+param out 1 ptr out_frame r1
+borrow input shr r0
+borrow out mut r1
+requires ( <= 0x0c ( len input ) )
+requires ( = ( len input ) input_len )
+requires ( < input_len 0x100000000 )
+requires ( or ( = h null ) ( = ( tag h ) 0x41544D31 ) )
+ensures ( => ( = res 0 ) ( = ( magic out ) 0x5441 ) )
+ensures ( => ( = res 0 ) ( <= ( payload_len out ) ( - ( len input ) 0x0c ) ) )
+ensures ( => ( != res 0 ) ( zeroed out ) )
+ensures ( = ( pad out ) 0 )
+assigns r1
+cap Read r0
+cap Write r1
+bound steps ( + 12 ( * 8 input_len ) )
+bound hwm 64
