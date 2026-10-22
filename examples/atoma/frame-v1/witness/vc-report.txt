@@ -1,0 +1,15 @@
+14 VCs -> vc/.gen
+    V1_no_underflow                  unsat
+    V1_needle_drop_requires          sat
+    V2_slice_in_bounds               unsat
+    V2_needle_drop_payload_bound     sat
+    V2_mutant_off_by_one             sat
+    V3_intcast_range                 unsat
+    V3_needle_drop_ffi_bound         sat
+    V4_maxplus_bound                 unsat
+    V5_magic_wire_order              unsat
+    V5_mutant_wrong_endian           unsat
+    V6_padding_zeroed                unsat
+    V6_mutant_offset_drift           sat
+    V7_post_payload_len              unsat
+    V8_premise_satisfiable           sat

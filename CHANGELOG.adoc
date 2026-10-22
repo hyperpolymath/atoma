@@ -6,6 +6,38 @@ The format is based on https://keepachangelog.com/en/1.1.0/[Keep a
 Changelog], and this project adheres to
 https://semver.org/spec/v2.0.0.html[Semantic Versioning].
 
+=== Atoma — Phase 0 (unreleased, 2026-10-22)
+
+The first executable slice of Atoma: a worked example whose Phase 0 gate runs end
+to end, plus the plan for the phases after it.
+
+==== Added
+
+* `examples/atoma/frame-v1/` — the length-prefixed, CRC-protected frame parsed in
+  place: Idris2 ABI (Face A), Zig implementation, extracted contract (Face B), a
+  compiler-witnessed layout table over four ABI target classes, and `verify.sh`,
+  which runs gates G1–G11 and writes `witness/phase0.receipt.json`.
+* `tools/atoma/` — the CLI: canonicalisation, hashing, contract extraction from
+  Zig doc comments, the subset checker (`E-*` diagnostics) and the VC generator.
+  Untrusted by construction; the trusted encoder is Idris2.
+* `verification/atoma/agda/` — `Bv`, `Lin`, `Core`, `Soundness`: the soundness
+  theorem for the store-free core, checked under `--safe --without-K` with no
+  postulates and no termination pragmas.
+* `docs/plan/ULTRAPLAN.adoc` — the delivery plan: 40 task cards, gates G12–G15,
+  and the trap table.
+
+==== Changed
+
+* The VC generator is Zig, not Python (`atoma vc`). `vc/gen_vcs.py` is deleted.
+  G7 regenerates the 14 queries, refuses a contract that drifted (the query set is
+  pinned to five canonical facts through `--cspec`) and compares each solver
+  verdict with the reviewed table `vc/expected.tsv`. The artefacts are now
+  hand-readable SMT-LIB rather than z3 `sexpr()` dumps, so the VC-set digest moved
+  to `blake3:dec3d833…9ce35d`; the obligations and all 14 verdicts (8 unsat,
+  6 sat) are unchanged.
+* `.machine_readable/root-allow.txt` — `tools/` is an optional root entry:
+  untrusted tool sources, outside the TCB. The trusted tree stays under `src/`.
+
 === [Unreleased]
 
 ==== Fixed

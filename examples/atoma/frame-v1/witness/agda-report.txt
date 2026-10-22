@@ -1,0 +1,5 @@
+agda ok   Bv
+agda ok   Lin
+agda ok   Core
+agda ok   Soundness
+agda: 4 modules, 0 postulates, 0 holes

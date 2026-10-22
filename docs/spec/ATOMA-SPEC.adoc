@@ -1,0 +1,1525 @@
+// SPDX-License-Identifier: CC-BY-SA-4.0
+// SPDX-FileCopyrightText: 2026 Jonathan D.A. Jewell <j.d.a.jewell@open.ac.uk>
+= Atoma
+:subtitle: A verifier for Zig at the Idris2 ABI seam — specification v0.1
+:toc:
+:toclevels: 3
+:sectnums:
+:icons: font
+:source-highlighter: highlight.js
+
+[abstract]
+--
+Atoma proves properties of Zig code that crosses a C ABI boundary, starting from
+the contract already written in Idris2 and extending to a deliberately small,
+checkable subset of Zig. It follows the shape of Ada/SPARK and Rust/Creusot: one
+name for the subset, the contracts and the toolchain; Zig is the language, Atoma
+is what checks it.
+
+Three artefacts are normative: the contract IR (`.cspec`), the canonical bytes
+of that IR (BLAKE3-addressed), and the SMT verification conditions derived from
+them. Everything else — the CLI, the canonicaliser, the VC generator — is
+untrusted plumbing that can be replaced without weakening a proof.
+
+This document is the design specification. It is deliberately explicit about
+which of its own claims are machine-checked in this repository
+(<<claims-ledger>>), and which are specified but not yet discharged. Nothing
+here is a claim of full functional correctness for Zig.
+--
+
+:sectnums!:
+
+[[claims-ledger]]
+== Status and claims ledger
+
+[cols="1,1,3,2", options="header"]
+|===
+| Claim | Status here | Evidence | Where it fails loudly
+
+| Face A and Face B elaborate to the same Core Spec IR bytes
+| *checked*
+| gate G5: both faces hash to `blake3:f5f97a7b…265756`
+| G5 exits non-zero on divergence
+
+| A one-token spec change changes the digest (equivalence is not vacuous)
+| *checked*
+| gate G5 divergence probe: `blake3:d49201f2…ffca70`
+| G5 fails if the probe matches
+
+| Every declared size/align/offset/padding range holds on x86_64, aarch64, riscv64, wasm32
+| *checked*
+| gate G3: 60 compiler-witnessed rows in `spec/layout.cspec`
+| `@compileError` inside the witness aborts the gate
+
+| A pointer-width-dependent struct is rejected on wasm32
+| *checked*
+| gate G4: `tools/layout_negative.zig` fails to compile for wasm32
+| gate G4 inverts: it fails if the bad struct is accepted
+
+| The example implementation is in the subset and passes its tests
+| *checked*
+| gate G1: 11/11 tests, Zig 0.15.2 and 0.16.0
+| `zig test` exit status
+
+| The example compiles for all four ABI target classes
+| *checked*
+| gate G2
+| `zig build-obj` exit status
+
+| The 14 SMT obligations of the worked example are valid
+| *checked* (when z3 present)
+| gate G7: 14/14, including 6 counterexample-producing queries
+| G7 fails if any query disagrees with `vc/expected.tsv`, if a committed `.smt2` is stale, or if the generator accepts a drifted contract
+
+| Linear handles are released exactly once on every path
+| *checked* (model-level)
+| `verification/atoma/agda/Lin.agda`, `theorem-rel-once`
+| `agda --safe --without-K` rejects the module
+
+| No wraparound can be silently coerced to an integer
+| *checked* (for `Fin 2^64`)
+| `Bv.agda`: `word-inj`, `word-bound`, `no-bound-2^64`
+| `agda --safe --without-K`
+
+| Specification mutants are distinct, content-addressed artefacts
+| *checked*
+| gate G6: 11 operators, 11 applied, 11 distinct
+| G6 fails on collision
+
+| Face B is *derived* from the Zig source, not hand-maintained beside it
+| *checked*
+| gate G8: `atoma extract src/frame_parse.zig` reproduces `spec/face-b.cspec`, `blake3:ee4d77f0…eb2358`
+| G8 fails on any drift; the fix is to re-extract and commit
+
+| The implementation is inside the subset, with every export contracted
+| *checked*
+| gate G9: 6 exports, 6 contracts, 0 `E-*` diagnostics
+| `atoma check` exits 1 on any diagnostic
+
+| The subset checker is not vacuous
+| *checked*
+| gate G10: `fixtures/violations.zig` yields 20 diagnostics over 17 distinct codes
+| G10 fails if the corpus is accepted or the counts drop
+
+| The VC generator is sound for the core fragment (the §6.3 theorem)
+| *checked*, for the *store-free* fragment only
+| gate G11: `Core.agda` + `Soundness.agda` typecheck under `--safe --without-K`, `blake3:e2b2f961…647249`; no postulates, no termination pragmas, no holes
+| G11 fails to compile; the theorem's type states its fragment, so it cannot be read wider than it is
+
+| The checked theorem says something about a Zig program
+| *no* — it relates `vc` to `safe`, both Agda functions
+| §6.4 "the refinement gap"; the simulation from `Stmt` to the subset's operational semantics is unwritten
+| nothing in the receipt claims it; listed as non-claim N3
+
+| Mutants are *killed* at ≥ 95 %
+| *not yet* — needs the ECHIDNA loop
+| Phase 1 exit criterion, §10
+| the score is computed by `echidna mutate`, not asserted here
+
+| The Idris2 contract module typechecks
+| *not here* — no Idris2 in the authoring environment
+| `abi/FrameAbi.idr` is normative text; gate F0.1 runs `idris2 --typecheck`
+| F0.1 is a Phase 0 entry gate, currently unrun
+
+| `spec/face-a.cspec` is what `encode frameParse` actually prints
+| *not yet* — it is a hand transcription of that output
+| F0.1 diffs the extractor output against the checked-in file; the seam hash makes any difference visible
+| the diff is non-empty, or the seam hash changes
+
+| The Dedukti witness typechecks and passes `coqchk` + `lean4checker`
+| *no* — no `dkcheck`, Coq or Lean here
+| `.dk` emission is specified in §7.4, not implemented
+| receipt stays `INCOMPLETE (Warrant)` until it is
+|===
+
+The receipt written by `examples/atoma/frame-v1/verify.sh` says exactly this:
+`schema atoma.receipt.v1`, `status INCOMPLETE`, `status_class Warrant`. It is
+promoted to `COMPLETE / Receipt` only by the batch kernel check of §7.4.
+
+:sectnums:
+
+== Executive architecture
+
+Atoma has one specification surface, two front doors, and one trust boundary.
+
+....
+ ┌───────────────────────────── TRUSTED SPECIFICATION ──────────────────────────────┐
+ │  Idris2  (abi/*.idr)    %default total · QTT 0/1/ω · no postulate, believe_me    │
+ │      Contract value  ──►  encode : Contract → String   (canonical by construct)  │
+ └──────────────────────────────────┬───────────────────────────────────────────────┘
+                                    │ Face A: extracted bytes
+        Zig source ──┐              │                       ┌── Face B: //! @… or .zigspec
+                     │              ▼                       ▼
+                     │    ┌──────────────────────────────────────────────┐
+                     │    │        Core Spec IR  (.cspec)                │
+                     │    │  canonicalise → BLAKE3 → seam-equivalence    │
+                     │    └───────────────┬──────────────────────────────┘
+                     │                    │
+   std.zig.Ast ──────┴──► subset check ────┤
+   (syntax)                  │            │        comptime layout witness
+   AstGen → ZIR              │            │        (@sizeOf/@offsetOf, per triple)
+   (fingerprint, optional)   ▼            ▼
+                     ┌──────────────────────────────────────────────┐
+                     │  VC generator (untrusted, Ada/SPARK target)   │
+                     │  AoRTE · bounds · layout · padding · linear   │
+                     └───────────────┬──────────────────────────────┘
+                                     │ SMT-LIB QF_BV / QF_ABV
+                                     ▼
+                     ┌──────────────────────────────────────────────┐
+                     │  ECHIDNA dispatch: Why3 · z3/cvc5 · Alethe    │
+                     └───────────────┬──────────────────────────────┘
+                                     │ proof trace
+                                     ▼
+                     ┌──────────────────────────────────────────────┐
+                     │  strict Dedukti  .dk   (content addressed)    │
+                     └───────────────┬──────────────────────────────┘
+                        dkcheck ──────┤
+                     coqchk (0 extra  │   BLAKE3(.dk) ──► Proof Burrower cache
+                     axioms) ─────────┤
+                     lean4checker ─────┘
+                                     ▼
+                        INCOMPLETE (Warrant) ──► COMPLETE (Receipt)
+....
+
+Five design rules follow from the architecture, and every later decision is
+traceable to one of them:
+
+. *The contract is a value, not a comment.* Face A is an Idris2 term; Face B is
+  sugar that must produce the same term. Agreement is decided by a digest, so
+  agreement is checkable in CI without a prover.
+. *The compiler is the only oracle for layout.* No tool re-implements the C ABI
+  layout rules. Idris2 declares, `@sizeOf`/`@offsetOf` witness, and the witness
+  is itself content-addressed.
+. *Untrusted parts may be wrong without being unsound.* A buggy VC generator can
+  reject good code (annoying, visible) or accept bad code (caught by the kernel
+  checks and by mutation testing). It cannot manufacture a `COMPLETE` receipt.
+. *Fail closed.* Every ambiguity — an unrepresented construct, a target without a
+  witnessed layout, a spec that cannot be canonicalised — is a hard error.
+. *No ambient authority.* Memory, I/O and iteration all arrive through a handle
+  the caller passed; `MPR`'s capability footprint is a first-class line in the IR.
+
+== One Core Spec IR, two faces
+
+=== Face A: the Idris2 ABI module is the specification
+
+An ABI module declares a `Contract` value. The extractor is not a parser: it
+prints `encode c` after typechecking, because `encode` is total and emits the
+canonical form directly (de Bruijn levels for binders, decimal literals, one
+space between tokens, `\n` per line).
+
+*Status:* the Idris2 toolchain is absent from the authoring environment, so
+`spec/face-a.cspec` is a hand transcription of what `encode frameParse` prints,
+not the extractor's own output. Gate F0.1 (`idris2 --typecheck`, then
+`idris2 --exec extract`) replaces the transcription with the real bytes; the seam
+hash makes any difference impossible to miss. Until then, the equivalence proved
+in this repository is *between the two checked-in files*, and the only claim about
+the Idris2 module is that it is the normative text they were transcribed from.
+
+The QTT quantities in the Idris2 signature are the source of the IR's `param`
+quantities, and they carry the ABI's ownership story:
+
+[cols="1,1,4", options="header"]
+|===
+| QTT | IR token | Meaning at the seam
+
+| `0` | `0` | erases at runtime: a ghost length, a layout proof, a refinement witness
+| `1` | `1` | consumed exactly once: a linear handle, an output lease
+| `ω` | `W` | borrowed for the call only: a capability token, a read-only region
+|===
+
+=== Face B: inline or sidecar contracts in Zig
+
+Two spellings, one grammar:
+
+[source,zig]
+----
+/// //! @contract atoma.frame.parse
+/// //! @kind extern
+/// //! @param h W handle
+/// //! @requires ( <= 12 ( len input ) )
+/// //! @ensures ( => ( = res 0 ) ( = ( magic out ) 0x5441 ) )
+export fn atoma_frame_parse(...) callconv(.c) Result { ... }
+----
+
+and a sidecar file `frame_parse.zigspec` holding the same body without the `///`
+prefix. Rules:
+
+* A contract block attaches to the *next* declaration; a blank line detaches it.
+* A sidecar is authoritative when both exist, and the mismatch is reported as
+  `E-SPEC-SHADOWED` rather than silently resolved.
+* The grammar is the same `.cspec` grammar; there is no second language.
+
+*Status:* the inline form is implemented and is what G8 exercises; the sidecar
+form and `E-SPEC-SHADOWED` are specified, not coded. `atoma extract` reads
+`doc_comment` runs only, so a `.zigspec` today is a design note rather than an
+input the toolchain accepts — stated here so that a reader of the grammar does
+not over-read the implementation.
+
+[NOTE]
+====
+Doc comments are not attached to declarations by `std.zig.Ast`; they are tokens in
+the token list. Association is done by adjacency in the *untrusted* frontend, and
+the result is hashed like any other spec. If the association is wrong, the digest
+is wrong, and the seam gate fails — the failure is visible, not silent.
+====
+
+=== The core IR
+
+A `.cspec` file is a sequence of lines. `#` starts a comment; blank lines are
+ignored. Tokens are separated by spaces; `(` and `)` are separate tokens.
+
+[cols="1,3,2", options="header"]
+|===
+| Line | Grammar | Meaning
+
+| `cspec` | `cspec 1` | format version; must be first
+| `contract` | `contract <dotted-name>` | identity, e.g. `atoma.frame.parse`
+| `kind` | `kind extern` | `extern` = C-ABI export; `internal` = Zig-only helper
+| `abisym` | `abisym <ident>` | the `export fn` name the contract constrains
+| `param` | `param <name> <qty> <sort> [region]` | one ABI parameter, in declaration order
+| `borrow` | `borrow <name> shr\|mut <region>` | second-class borrow of a param
+| `requires` | `requires <formula>` | caller obligation; assumed, not proved
+| `ensures` | `ensures <formula>` | callee obligation; proved
+| `invariant` | `invariant <formula>` | loop invariant
+| `assert` | `assert <formula>` | inline proof obligation
+| `assigns` | `assigns <region>` | regions the callee may write (set-valued)
+| `cap` | `cap <Cap> <region>` | MPR capability footprint (set-valued)
+| `sort` | `sort <name> <width> <align>` | named sort declaration (set-valued)
+| `field` | `field <Struct>@<arch> <offset> <width> <align> <name> <sort>` | one field row (set-valued)
+| `layout` | `layout <Struct>@<arch> <size> <align> <pad-ranges>` | whole-struct row (positional)
+| `bound` | `bound steps <tm>` / `bound hwm <nat>` | MaxPlus cost, stack HWM
+|===
+
+Formulas are a first-order fragment over `Nat`, booleans, and the observation
+functions `len`, `tag`, `magic`, `payload_len`, `zeroed`, `pad`:
+
+[source]
+----
+fm ::= ( <= tm tm ) | ( < tm tm ) | ( = tm tm ) | ( != tm tm )
+     | ( and fm fm ) | ( or fm fm ) | ( => fm fm ) | ( not fm )
+     | ( forall ( %k : sort ) fm )
+tm ::= <identifier> | <integer> | ( len <id> ) | ( tag <id> ) | ( magic <id> )
+     | ( payload_len <id> ) | ( zeroed <id> ) | ( pad <id> )
+     | ( + tm tm ) | ( - tm tm ) | ( * tm tm )
+----
+
+`%k` is a de Bruijn *level* — 0 is the outermost binder of the enclosing formula.
+Levels rather than names are used because the canonical form prints `%k`, so
+alpha-invariance is a construction property rather than a renaming pass. v1
+forbids shadowing, so level and index coincide. Binder types must be atomic
+(a declared sort); a compound binder type is rejected (`Error.MalformedBinder`
+in `canon.zig`) rather than mis-scoped.
+
+=== Canonicalisation (the eight rules)
+
+Canonical form is defined by eight rules, implemented twice — once as `encode`
+in Idris2 (normative) and once in `tools/atoma/src/canon.zig` (convenience,
+differentially tested against a golden corpus):
+
+[cols="1,3,2", options="header"]
+|===
+| Rule | Transformation | Why it is meaning-preserving
+
+| R1 | drop `#` comments and blank lines | lexically inert
+| R2 | `(`/`)` are single-character tokens | parsing only
+| R3 | one space between tokens, one `\n` per line, ASCII | whitespace is not semantic
+| R4 | binder names → `%0`, `%1`, … | alpha-equivalence
+| R5 | integers → unsigned decimal, no leading zeros, `0x`/`0b`/`_` accepted | literal identity
+| R6 | *set-valued* lines sorted: `cap`, `assigns`, `field`, `sort` | these are sets; order is not semantic
+| R7 | *positional* lines keep order: `param`, `borrow`, `requires`, `ensures`, `invariant`, `assert`, `layout`, `bound` | order **is** semantic at the seam: parameter order is the ABI, and clause order is the author's proof narrative
+| R8 | digest = BLAKE3(domain ++ bytes), domains `atoma.cspec.v1`, `atoma.vc.v1`, `atoma.dk.v1` | domain separation
+|===
+
+`schema`-style sorting of `requires` is deliberately *not* done. Two contracts
+with the same requires in a different order are the same proposition, but they
+are different *documents*, and ABI review reads the order. Keeping the stricter
+notion means the seam check can produce false negatives (a refusal to equate two
+equivalent specs) and never a false positive on ordering.
+
+=== Hash-checked equivalence, and what it does not mean
+
+`atoma equiv face-a.cspec face-b.cspec` exits 0 iff the canonical bytes are
+identical. In this repository:
+
+[source]
+----
+$ atoma hash spec/face-a.cspec
+blake3:ee4d77f0932619c5c1933d342f645a4eff85d9fead9fb0c1d9c8a0890feb2358
+$ atoma hash spec/face-b.cspec
+blake3:ee4d77f0932619c5c1933d342f645a4eff85d9fead9fb0c1d9c8a0890feb2358
+$ atoma hash spec/layout.cspec
+blake3:c75f72ce33010b457c8dc7f8c8514720904ddaeca9de0ce412cc7d61cf8accd1
+----
+
+The verified artefact is *contract ∧ layout table*, because a drifted offset
+must not be able to hide behind an unchanged contract:
+
+[source]
+----
+face-a ++ layout  = blake3:f5f97a7bee44d4596590ecb7745c70565ebdf4fb5daa8a48d9a365a85f265756
+face-b ++ layout  = blake3:f5f97a7bee44d4596590ecb7745c70565ebdf4fb5daa8a48d9a365a85f265756
+----
+
+*This is syntactic agreement, not semantic equivalence.* Two contracts that are
+logically equivalent but differ in an unnormalised way produce different digests.
+That is the safe direction: the check can refuse a correct pair, and cannot
+accept an incorrect one — provided the eight rules are themselves
+meaning-preserving, which is the one proof obligation the canonicaliser carries
+and which is stated, not proved, in v0.1.
+
+== The verifiable Zig subset
+
+The subset is chosen so that every obligation is either discharged by SMT in
+QF_BV/QF_ABV or proved once in the Agda metatheory. Anything that would need
+separation logic, arbitrary heap reasoning, or a second solver is out.
+
+=== Classification
+
+[cols="3,1,1,1,3", options="header"]
+|===
+| Construct | MVP | P2 | P3 | Soundness rationale
+
+| `u8..u64`, `i8..i64`, `usize` (local only) | ✔ | | | fixed-width, no UB in itself
+| `enum(uN)` with explicit backing | ✔ | | | layout is stated, not inferred
+| `extern struct` | ✔ | | | C-compatible by declaration; witnessed per target
+| `struct` (non-extern), `union(enum)` | ✔ | | | internal only; never crosses the seam
+| `packed struct`, `packed union` | ✘ | | | bit-level aliasing defeats the padding model
+| `bool`, `usize`, `isize`, `anyopaque` in `extern` types | ✘ | | | width is target-dependent (measured: a `usize` field moves a struct from 24/8 to 12/4 — see F0.3)
+| `*T`, `*const T`, `?*T` | ✔ | | | non-null by type (or explicitly optional); no arithmetic
+| `[]T`, `[]const T` | ✔ | | | carries length; index bound is a VC
+| `[*]T` | ◐ | | | allowed **only** when paired with an Idris2 ghost length that bounds every access
+| `[*c]T` | ✘ | | | nullable, arithmetic-enabled, no provenance: banned outright
+| `[*:0]T` (sentinel) | ✘ | | | length is a scan; unbounded work, no HWM bound
+| pointer arithmetic (`p + i`) | ✘ | | | breaks region discipline and bounds
+| `@ptrCast`, `@alignCast` | ✘ | | | type/alignment confusion; no obligation can recover it
+| `@ptrFromInt` | ✘ | ✘ | ✘ | never; not even in P3
+| `@intFromPtr` / `@ptrFromInt` round-trip | ✘ | | | provenance loss
+| `[N]T`, `[N:0]T` | ✔ | | | length in the type
+| slicing `s[a..b]` | ✔ | | | two bound VCs; `b <= a` also checked
+| `@sizeOf`, `@alignOf`, `@offsetOf`, `@bitSizeOf` | ✔ | | | comptime only, no runtime obligation
+| `+ - *` and `<<` | ✔ | | | panic on overflow in safe modes; must be proved non-overflowing
+| `+% -% *%` (wrapping) | ✘ | | | explicit wraparound is a bug unless modelled; requires an `Echo` residue proof
+| `+%` with a written Echo witness | | ✔ | | lossy conversion with structured residue
+| `@intCast` | ✔ | | | range VC required; panics otherwise
+| `@truncate` | ◐ | | | allowed only with an explicit `Echo` type recording what was dropped
+| `/`, `%` | ✔ | | | divisor ≠ 0 VC; `minInt / -1` VC for signed
+| `@divTrunc`, `@divFloor`, `@rem`, `@mod` | ✔ | | | same obligations, named rounding
+| float arithmetic | ✘ | | | NaN/rounding make the contract logic much weaker; out of scope
+| `?T` + `orelse` | ✔ | | | total unwrap
+| `.?` | ✘ | | | panics; banned
+| `unreachable` | ✘ | | | UB in release; a proof of falsity must become an `assert`+`return`
+| `error{X}` unions | ✔ | | | closed set; mapped to `enum(c_int)` at the seam
+| `try`, `catch`, `errdefer` | ◐ | ✔ | | MVP: at most one fallible call, Phase 2: full linear discipline
+| `defer` | ◐ | ✔ | | MVP: release-shaped only
+| `while` with `invariant` + `decreases` | ✔ | | | bounded loops only; MaxPlus needs an explicit bound
+| `for` over a slice | ✔ | | | bound is `len`, decreasing is structural
+| recursion | ✘ | ✔ | | P2 requires a structural `@decreases` measure; no general termination
+| `Allocator` as an explicit parameter | | ✔ | | MPR capability; no global allocator in MVP
+| `std.heap.c_allocator` | ✘ | ✘ | ✘ | ambient OS authority; never in the subset
+| global `var`, `threadlocal var` | ✘ | ✘ | | ambient mutable state; state belongs in a handle
+| `volatile` | ✘ | ✘ | ✘ | defeats every reasoning principle here
+| inline `asm` | ✘ | ✘ | ✘ | no model
+| `@cImport` | ✘ | | | unbounded foreign surface; use explicit `extern` declarations
+| function pointers / callbacks | ✘ | ◐ | | P2: only with a sealed, listed set of targets
+| `comptime` functions | ✔ | | | evaluated, no runtime obligation
+| generics | ✔ | | | monomorphised before extraction
+| `async`, threads, atomics | ✘ | ✘ | ✘ | no concurrency model in v1
+| `@panic`, `std.debug.assert` | ✘ | | | panics; use `errdefer` + error return
+| `extern` with non-C calling convention | ✘ | | | `.c` is required and checked
+
+|===
+
+Legend: ✔ included · ◐ restricted (see the row) · ✘ excluded.
+
+=== Pointers, slices, and the ghost length
+
+The rule for `[*]T` is the only place the subset depends on a proof rather than a
+type. A many-item pointer has no length, so every access `p[i]` needs `i < n`
+where `n` is a length the compiler cannot see. Atoma requires `n` to arrive as an
+Idris2 ghost (`input_len : U32` with `Eq (Len "input") (Var "input_len")` in the
+contract). Without that equation, the pointer does not typecheck into the subset.
+
+`[]T` needs no ghost: the length is in the value, and the only obligation is
+`i < s.len`, which is a QF_BV query.
+
+`[*c]T` is banned with no exceptions because three separate properties fail at
+once: it is nullable (so no `?` discipline), it permits arithmetic (so no region
+discipline), and it carries no length (so no bounds discipline). Recovering any
+one of them requires the other two.
+
+=== Aliasing: a second-class borrow discipline
+
+Zig has no borrow checker, so Atoma imposes one at the seam, in the style of
+`ephapax`'s L1/L2 regions:
+
+. *Regions are named and finite.* Every parameter belongs to a region mentioned
+  in the contract (`r0`, `r1`, …), and the region set is closed at the signature.
+. *Borrows are second-class.* A borrow may be passed as an argument and used in
+  the callee; it may not be stored in a struct, returned, or captured by a
+  closure. There is no place for it to escape to.
+. *Shared borrows may alias; mutable borrows may not.* Two `shr` borrows of the
+  same region are allowed. A `mut` borrow is exclusive: the contract may not
+  contain another borrow of the same region (`E-BORROW-EXCL`).
+. *Regions are disjoint by declaration.* `assigns r1` means writes are confined
+  to `r1`; a write through an `r0` pointer is `E-REGION-WRITE`.
+. *Quantities are checked, not suggested.* A `1` parameter must be consumed
+  exactly once on every path (`Lin.agda`).
+
+This is enough to prove the worked example's central alias property — the output
+struct points into the caller's input buffer, and the contract says so — without
+a separation-logic solver. It is explicitly *not* a general borrow checker: it
+says nothing about heap aliasing inside a callee that allocates.
+
+=== ABI and layout
+
+Rules for anything that crosses the seam:
+
+* `extern struct` only; no `packed`, no `union` (a bare `union` at the seam is
+  `E-ABI-UNION`), no `usize`/`isize`/`bool`/slices/optionals-by-value.
+* `enum(uN)` must name its backing integer; a bare `enum` is `E-ABI-ENUM`.
+* Every integer is an explicit width. `c_int` appears only in a `callconv(.c)`
+  return position, and only where the C type is genuinely `int`.
+* Padding is *declared*, not assumed. The layout table records padding ranges,
+  and every offset/range is confirmed by the compiler on each target.
+
+Measured layout facts for the worked example (compiler-witnessed, all four
+targets; the full 60-row table is `spec/layout.cspec`):
+
+[cols="2,1,1,1,1,3", options="header"]
+|===
+| Struct | Target | size | align | pad ranges | Notes
+
+| `FrameHeader` | all four | 16 | 4 | 6..8, 14..16 | target-independent: no pointers
+| `FrameOut` | x86_64 / aarch64 / riscv64 | 32 | 8 | 6..8, 12..16, 28..32 | `payload` @16, `payload_len` @24
+| `FrameOut` | wasm32 | 20 | 4 | 6..8 | `payload` @12, `payload_len` @16
+| `BadOut` (`usize` field) | x86_64 | 24 | 8 | 1..8, 20..24 | rejected by the subset
+| `BadOut` (`usize` field) | wasm32 | 12 | 4 | 1..4, 8..12 | the same declaration is *also* wrong here — hence F0.3
+|===
+
+The `BadOut` row is the reason the ABI rule exists: a single `usize` field changes
+both size and alignment, so a C header generated for one target is wrong on the
+other. Atoma refuses the declaration rather than proving the wrong thing.
+
+=== Absence of Runtime Errors across `callconv(.c)`
+
+A panic inside an `export fn` is not a Zig-level error: it unwinds into foreign
+code, which is UB unless the foreign code is Rust with `-C panic=abort` and a
+guarantee, and even then it is a process abort. Atoma therefore discharges, for
+every `export fn` in the subset:
+
+[cols="1,3,3", options="header"]
+|===
+| Obligation | Encoding | Example VC in the worked example
+
+| no integer overflow | QF_BV: `¬(a ⊕ b = wrap)` | `V4_maxplus_bound` (cost arithmetic stays in range)
+| no subtraction underflow | QF_BV: `a ≥ b` before `a - b` | `V1_no_underflow`
+| no division by zero | QF_BV: `b ≠ 0` | (Phase 1, `crc32` has none)
+| no `@intCast` truncation | QF_BV: `x < 2^w` | `V3_intcast_range`
+| no out-of-bounds read/write | QF_ABV: `i + n ≤ len` | `V2_slice_in_bounds`
+| no null unwrap | first-order | the `orelse` chain in `atoma_frame_parse`
+| no `unreachable` | there is none in the subset | `canon` rejects the token
+| no panic macro | there is none in the subset | `canon` rejects the token
+| no uninitialised read | dataflow: every read dominated by a write | `atoma.zeroBytes(out)` precedes every field write
+| no padding leak | QF_ABV over the struct byte range | `V6_padding_zeroed`
+|===
+
+`zeroed` and `pad` in the IR are observation functions, not predicates on
+undefined memory: `pad out` is only satisfiable if the implementation wrote every
+padding byte, which in Zig requires an explicit byte-level operation
+(`atoma.zeroBytes`). A value assignment `out.* = .{...}` does not define padding
+and therefore cannot discharge `pad`.
+
+*Status.* Two of those obligations — subtraction underflow and division by zero —
+are modelled in the checked core language, and §6.3 proves that the generator's
+obligations for them are sufficient. The other eight are emitted by the VC
+generator and discharged by the solver for the worked example (§8.3), but their
+*adequacy* — that the SMT encoding of an `@intCast` range, or of a struct's
+padding bytes, means what the prose says — is argued rather than proved. That
+argument is exactly what the traps of §7.2 enumerate, and it is reviewed rather
+than mechanised. The distinction is worth keeping sharp: a discharged
+`V6_padding_zeroed` is strong evidence; the theorem of §6.3 is a proof of a
+strictly smaller statement.
+
+=== Control flow, resources, and cost
+
+*Loops.* `while` requires an `@invariant` and a `@decreases` term. `for` over a
+slice needs neither, because the bound and the variant are the slice length.
+Unbounded loops are `E-LOOP-UNBOUNDED`.
+
+*Linear cleanup.* `defer` runs on every exit; `errdefer` runs only on error
+exit. The canonical resource shape is acquire → `errdefer` release → fallible
+steps → release, and `Lin.agda` proves that this shape releases exactly once on
+every path, including paths that fail at the first step and paths that fail after
+several.
+
+*Cost.* `bound steps` is a MaxPlus expression over the parameters. For
+`crc32` it is `8 * len + c`, because the inner bit loop is exactly eight
+iterations and the outer loop is one per byte. `bound hwm` is the maximum live
+stack in bytes, computed from the largest simultaneously-live frame.
+
+== Idris2 ↔ Zig contract mapping
+
+[cols="3,3,3,2", options="header"]
+|===
+| Idris2 (Face A) | Zig (Face B / implementation) | Obligation produced | Checked by
+
+| `MkParam "h" QW Handle` | `h: ?*const Handle` | tag check before use; no null deref | SMT + tests
+| `MkParam "out" Q1 PtrOutFrame` | `out: ?*FrameOut` | non-null; exactly-once consumption | QTT + `Lin.agda`
+| `MkParam "input_len" Q0 U32` | `in_len: u32` | ghost: used only in proofs, erased | typecheck
+| `SliceU8` | `in_ptr: ?[*]const u8` | `len` equality from the ghost | IR equation
+| `MkBorrow "input" Shared "r0"` | `[]const u8` derived from the pointer | no write through `r0` | `assigns`
+| `MkBorrow "out" Mutable "r1"` | `*FrameOut` | exclusive write region | `assigns r1`
+| `Le (Num 12) (Len "input")` | `if (buf.len < 12) return .truncated` | `buf.len ≥ 12` | `V1`
+| `Lt (Var "input_len") (Num 0x100000000)` | `in_len: u32` | cast range | `V3`
+| `Eq (MagicOf "out") (Num 0x5441)` | `out.magic = magic` | postcondition | `V7`
+| `Le (PayloadLen "out") (Sub (Len "input") (Num 12))` | `out.payload_len = length` | postcondition | `V7`
+| `Zeroed "out"` on error | `errdefer atoma.zeroBytes(out)` | all-or-nothing output | QF_ABV + tests
+| `PadOf "out" = 0` | `atoma.zeroBytes(out)` before field writes | no padding leak | `V6`
+| `MkField "crc" 8 4 4` | `crc: u32` at offset 8 | layout equality | comptime witness
+| `Aligned 16 4` | `@sizeOf(FrameHeader) = 16`, `@alignOf = 4` | layout equality | comptime witness
+| `MkBounds (Add (Num 12) (Mul (Num 8) (Len "input"))) 64` | the two loops | MaxPlus bound | QF_LIA (`V4`)
+| `%foreign "C:atoma_frame_parse,libatoma"` | `export fn atoma_frame_parse` | symbol identity | seam gate
+|===
+
+Two rules make the table enforceable rather than aspirational:
+
+* *Every* `export fn` in the subset has a contract, or the build fails
+  (`E-UNCONTRACTED-EXPORT`). An uncontracted export is exactly the bug class the
+  tool exists to prevent.
+* Every contract's `abisym` must resolve to an `export fn` of that name, or the
+  build fails (`E-DANGLING-CONTRACT`). Contracts cannot rot into comments.
+
+== Frontend: how Zig source becomes Core IR
+
+=== The options, measured
+
+[cols="2,2,2,2,3", options="header"]
+|===
+| Approach | Sees | Cannot see | Churn exposure | Verdict
+
+| `std.zig.Ast` directly
+| tokens, nodes, comments, doc comments
+| types, layout, comptime evaluation, name resolution
+| low for node *kinds*; the `parse` signature itself moved between 0.16 and 0.17 (`Mode` → `ParseOptions`)
+| *primary*
+
+| typed ZIR (via `std.zig.AstGen.generate`)
+| a compiler-internal instruction stream; measured: 23 instructions for a 4-line function
+| types (ZIR is pre-`Sema`), layout, resolved calls
+| **high**: `Zir.Inst.Tag` is a compiler detail; `Zir.inst_tracking_version` exists precisely because tracking is unstable
+| *optional fingerprint only*
+
+| AIR
+| the analysed, typed IR
+| nothing — it is the real thing
+| **total**: not exported by `std` at all (no `std/zig/Air.zig`); it is a compiler build artefact
+| *never*
+
+| hybrid: `Ast` + comptime witness
+| syntax from `Ast`; layout from the compiler itself via `@sizeOf`/`@offsetOf`
+| semantic facts that need `Sema` (e.g. inferred error sets)
+| low: two narrow, separately versioned surfaces
+| *chosen*
+|===
+
+=== The decision, and why it survives churn
+
+Atoma takes syntax from `std.zig.Ast` and every *semantic fact it needs* from the
+compiler, on demand, through a generated witness file:
+
+[source,zig]
+----
+// tools/layout_witness.zig — the compiler checks the Idris2 declaration
+comptime {
+    witness.check(FrameOut, "FrameOut", .{
+        .size = 32, .alignment = 8,
+        .offsets = &.{ 0, 2, 4, 5, 8, 16, 24 },
+        .pads = &.{ 6, 8, 12, 16, 28, 32 },
+    });
+}
+----
+
+A declaration that does not hold is a `@compileError`, so the gate fails at
+compile time on the offending target. The rows the compiler emits are transcribed
+verbatim into `spec/layout.cspec` and hashed with the contract.
+
+This is resilient for a specific reason: *it never re-implements the compiler.*
+Everything that changes between Zig releases — layout rules, calling conventions,
+comptime evaluation, error-set inference — is answered by the compiler that ships
+with the release. Atoma only parses syntax, and syntax is the most stable part of
+Zig. When the syntax does change, the failure is a parse error in one file, not a
+silently different proof.
+
+The unstable parts are quarantined behind two narrow surfaces:
+
+[cols="2,1,1,1,3", options="header"]
+|===
+| API | 0.15.2 | 0.16.0 | 0.17.0 | Consequence
+
+| `callconv(.C)` | rejected | rejected | rejected | must be `.c` everywhere (measured on all three)
+| `std.zig.Ast.parse` 3rd arg | `Mode` | `Mode` | `ParseOptions` | one-line shim, pinned per release
+| `std.process.argsAlloc` | present | **removed** | **removed** | the `atoma` CLI is pinned to 0.15.2; the *verified example* builds on 0.15.2 and 0.16.0
+| `std.ArrayList(u8).init` | removed (unmanaged default) | removed | removed | use `ArrayListUnmanaged` with explicit allocator
+| `std.io.getStdOut()` | removed | removed | removed | writer API reworked
+|===
+
+The last two rows are not hypothetical: they are the errors hit while building
+this repository's own tooling, and they are why `.zig-version` pins the CLI while
+the example is tested against two releases.
+
+=== ZIR as an optional fingerprint
+
+`std.zig.AstGen.generate` is public, and a standalone tool can call it:
+
+[source]
+----
+$ ./zirprobe
+ast ok, errors=0 nodes=18
+zir ok: instructions=23 strings=5 extra=72
+first 6 tags: extended declaration break_inline param dbg_stmt int
+----
+
+Atoma uses this in Phase 2 for one narrow job: detecting that a function's
+*structure* changed between runs while its text did not (macro expansion,
+`comptime` block evaluation). It is never used to derive types or layout, both of
+which ZIR does not have, and ZIR is never treated as an authority — if the tag
+set changes between Zig versions, the fingerprint is recomputed, and only cache
+keys move.
+
+=== The two frontend commands
+
+The frontend is not a diagram in this document; it is
+`tools/atoma/src/frontend.zig`, and the frontend proper is two commands.
+
+*`atoma extract <file.zig> [--symbol <name>]`* recovers Face B from the source.
+It walks the `std.zig.Ast`, collects each `doc_comment` run immediately above an
+`export fn`, and parses the directives in order:
+
+[cols="1,2,3", options="header"]
+|===
+| Directive | Argument | Line emitted
+
+| `@contract` | dotted name | `contract` (required, exactly one)
+| `@kind` | `extern` \| `internal` | `kind` (default `extern`)
+| `@param` | `name qty sort [region]` | `param`, in source order
+| `@borrow` | `name shr\|mut region` | `borrow`
+| `@requires` | formula | `requires`, in source order
+| `@ensures` | formula | `ensures`, in source order
+| `@assert` | formula | `assert`
+| `@assigns` | region | `assigns` (set-valued)
+| `@cap` | `Cap region` | `cap` (set-valued)
+| `@bound` | `steps <tm>` \| `hwm <nat>` | `bound`
+|===
+
+Five further directives are accepted as notes for humans and deliberately produce
+no output line: `@abi`, `@decreases`, `@invariant`, `@linear`, `@frame`. They
+document intent the compiler or a later phase enforces, and because they never
+reach the canonical bytes they cannot drift the seam. Any other `@` word is
+`UnknownDirective` — the frontend does not guess, which is the fail-closed rule
+applied to its own input.
+
+Both `/// @x` and `/// //! @x` are accepted, because the directive block doubles
+as the module-level documentation a Zig reader expects. Internal whitespace is
+squashed, output lines are emitted in the fixed order above, and the result is
+fed through the same canonicaliser as everything else — so extractor output and a
+hand-written face agree iff they mean the same thing under the eight rules of
+§2.4. Failure modes are explicit: `NoContract` (a directive block with no
+`@contract`), `MultipleContracts` (two), `UnknownDirective` (a `@` word that is
+not in the table). There is no silent skipping.
+
+The consequence is a one-way dependency: source → `spec/face-b.cspec` → seam
+hash. `spec/face-b.cspec` carries a do-not-hand-edit header and G8 fails the
+build if it drifts from what the extractor produces. This was not a theoretical
+improvement. When the extractor first ran, the hand-written Face B had already
+diverged from the source — an extra `requires` and an unbound `forall` — and the
+correct repair was to regenerate the file, not to patch the parser.
+
+*`atoma check <file.zig>`* reports subset conformance. It is a token-level scan:
+conservative, name-resolution-free, and explicitly *not* a type check. It emits
+one line per diagnostic and exits 1 if any were produced, 3 on I/O or parse
+failure. The codes are the subset's bans made readable:
+
+[cols="1,3,2", options="header"]
+|===
+| Code | Fires on | Class
+
+| `E-PTR-C` | `[*c]T` anywhere | banned outright
+| `E-PTR-CAST` | `@ptrCast`, `@alignCast` outside the allow-list | quarantined
+| `E-PTR-INT` | `@ptrFromInt`, `@intFromPtr` | quarantined
+| `E-CIMPORT` | `@cImport` | quarantined
+| `E-PANIC` | `unreachable`, `@panic`, `std.debug.assert` | banned in exports
+| `E-SAFETY-OFF` | `@setRuntimeSafety(false)` | banned
+| `E-QUOTA` | `@setEvalBranchQuota` beyond the subset's budget | bounded
+| `E-VOLATILE` | `volatile` | banned
+| `E-ASM` | `asm` | banned
+| `E-UNREACHABLE` | `unreachable` on a reachable path | banned
+| `E-ABI-PACKED` | `packed struct` at the seam | banned
+| `E-ABI-UNION` | `union` at the seam | banned
+| `E-ABI-WIDTH` | a pointer-width-dependent field crossing the seam | requires a ghost
+| `E-ALLOC-AMBIENT` | allocator obtained from ambient state | needs a capability
+| `E-GLOBAL-VAR` | mutable global `var` | banned
+| `E-OPTIONAL-UNWRAP` | `.?` on a payload that may be absent | needs a proof
+| `E-UNCONTRACTED-EXPORT` | `export fn` with no directive block | banned
+| `E-DANGLING-CONTRACT` | a directive block above a non-export | rejected
+| `E-ABI-CALLCONV` | an explicit non-`.c` callconv at an export | rejected
+| `E-ABI-NO-CALLCONV` | an `export fn` without `callconv(.c)` | rejected
+| `E-PARSE` | the file does not parse | fatal
+|===
+
+Two properties matter more than the list. First, it is *conservative*: a false
+positive costs a rename or a `@contract` line, a false negative costs a soundness
+claim, and the checker is built to prefer the former. Second, it is
+*non-vacuous*, and that is a gate rather than an assertion: `fixtures/violations.zig`
+is a negative corpus of ~20 violations spanning 17 codes, and G10 fails if the
+checker accepts it or if the code coverage drops (measured: 20 diagnostics,
+17 distinct codes).
+
+What the checker cannot see is as important as what it can. It does not resolve
+names, evaluate `comptime`, compute layout, or reason about data flow; those come
+from the compiler witness (§3.4) and the VC pipeline (§7). A green `atoma check`
+means "nothing on the ban list appears", never "this function is correct".
+
+== Semantics and soundness
+
+=== The core language
+
+Two grammars matter here, and confusing them is the easiest way to overclaim.
+The *target* grammar is what the VC generator is specified to cover by the end of
+Phase 2. The *checked* grammar is what `verification/atoma/agda/Core.agda`
+formalises today, and it is a strict subset of the target. Every theorem in
+§6.3 is stated over the checked grammar, so a reader cannot mistake a
+specification for a proof.
+
+*Target grammar* (Phase 1–2 scope):
+
+[source]
+----
+e ::= n | x | e ⊕ e | len(e) | e[e] | &x | *p | cast_w(e)
+s ::= skip | x := e | s ; s | if e then s else s
+    | while e inv I dec V do s | assert φ | return e
+    | acquire x | release x | defer s | errdefer s | try s
+σ ::= x ↦ v, …                        (store)
+----
+
+Small-step configurations are `⟨s, σ⟩`, `⟨ret v, σ⟩`, `⟨err c, σ⟩`, and the
+absorbing `UB`. `UB` is reached exactly when: `e₁ - e₂` with `v₁ < v₂`; `e₁ + e₂`
+outside `2^w`; `e[i]` with `i ≥ len`; `e / 0`; `cast_w(e)` out of range; a read
+of uninitialised memory; a dereference of a released handle; or the token
+`unreachable`. Every one of those has a VC schema in §6.2.
+
+*Checked grammar* (`Core.agda`):
+
+[source]
+----
+Tm   ::= lit n | var x | add Tm Tm | mul Tm Tm | sub Tm Tm | div Tm Tm
+Fm   ::= tt | le Tm Tm | eq Tm Tm | and Fm Fm | neg Fm Fm
+Stmt ::= skip | bind Tm | seq Stmt Stmt | assert Fm | ite Fm Stmt Stmt
+----
+
+`exec : Stmt → Val → Val` is total and never inspects its own safety;
+`safe : Stmt → Val → Bool` is a separate predicate. Keeping them apart is
+deliberate: it is what lets a compensating bug in the evaluator be caught rather
+than hidden inside the safety predicate. Two constructs carry the whole risk
+model — `sub` is undefined when the subtrahend exceeds the minuend, `div` when
+the divisor is zero — and they are exactly the two states the generator emits
+obligations for.
+
+The checked fragment is *store-free*. `bind e` evaluates and discards, and `Tm`
+has no constructor that reads a value a statement wrote. This is not a shortcut
+taken to make the proof go through; it is the discipline the seam already
+imposes. Path conditions are stated over parameters (`r0`); writes go to the
+output region (`r1`); `assigns` keeps them disjoint. A store would require the
+framing lemma — a statement that writes nothing mentioned by the path condition
+preserves it — before `soundness` could be proved, and postulating that lemma
+would be strictly worse than not formalising the store at all.
+
+=== The VC generator
+
+`vc : Contract → Stmt → List Obligation`, where
+`Obligation = (premises : List Fm, goal : Fm)`, and validity is
+`∀σ. σ ⊨ premises ⟹ σ ⊨ goal`.
+
+[cols="1,2,3", options="header"]
+|===
+| Schema | Generated from | Shape
+
+| `vc-sub` | `a - b` | `pre ⟹ a ≥ b`
+| `vc-add` | `a + b`, `a * b`, `a << k` | `pre ⟹ a ⊕ b < 2^w`
+| `vc-div` | `a / b` | `pre ⟹ b ≠ 0` (and `¬(a = minInt ∧ b = -1)` for signed)
+| `vc-cast` | `@intCast` to `w` | `pre ⟹ a < 2^w`
+| `vc-idx` | `s[i]`, `p[i]` | `pre ⟹ i < len(s)` (or `i < ghost`)
+| `vc-slice` | `s[a..b]` | `pre ⟹ a ≤ b ∧ b ≤ len(s)`
+| `vc-pad` | struct leaves the seam | `pre ⟹ pad(x)` after `zeroBytes`
+| `vc-post` | `ensures` block | `pre ∧ res = ok ⟹ φ`
+| `vc-err` | error paths | `pre ∧ res ≠ ok ⟹ ψ` (e.g. output zeroed)
+| `vc-inv` | loop invariant | entry, preservation, exit
+| `vc-term` | `decreases V` | `V' < V` (MaxPlus order)
+| `vc-vacuous` | every contract | `pre` is satisfiable
+|===
+
+`vc-vacuous` is not optional. A contradictory precondition makes every other VC
+trivially valid, and a specification that proves nothing is worse than none.
+
+The checked generator implements four of these schemas — `vc-sub`, `vc-div`,
+`vc-assert` (an `assert` becomes its own obligation) and the path-condition
+refinement at `ite` — plus the recursive walk that carries the path condition
+into subterms. Each hazard obligation is *guarded* by that path condition, so an
+unguarded `len - 12` still emits an obligation; its premise is `tt`. Vacuity is
+therefore a property of the premise rather than of whether an obligation exists,
+which is precisely why `vc-vacuous` is a schema of its own.
+
+=== The soundness theorem
+
+Two statements live here. The first is machine-checked today; the second is the
+Phase 2 target. They are not merged into one theorem, because the difference
+between them is the entire remaining proof obligation.
+
+*Checked* (`Soundness.agda`, under `agda --safe --without-K`):
+
+[source]
+----
+soundness :
+  ∀ (s : Stmt) (pc : Fm) (v : Val) →
+    AllValid (vc pc s)          -- every emitted obligation holds in every state
+  → ⟦ pc ⟧f v ≡ true            -- the entry state satisfies the path condition
+  → safe s v ≡ true             -- `s` cannot reach UB from `v`
+----
+
+with `AllValid [] = ⊤`, `AllValid (o ∷ os) = OblValid o × AllValid os`, and
+`OblValid (mkObl pre goal) = ∀ v → ⟦ pre ⟧f v ≡ true → ⟦ goal ⟧f v ≡ true`.
+That last type is exactly what a solver answers when it returns UNSAT for
+`premises ∧ ¬goal` with the variables universally quantified — which is why the
+theorem composes with §7 instead of sitting beside it.
+
+*Target* (Phase 2; the checked statement is its `safe` component):
+
+[source]
+----
+soundness-full :
+  ∀ {Γ c s} →
+    wellFormed Γ s                    -- the program is inside the subset
+  → kernel-valid (vc c s)             -- every obligation is valid, checked by the
+                                      --   kernel chain of §7, not by a solver's say-so
+  → σ ⊨ pre c
+  → (¬ (⟨ s , σ ⟩ ⟶* UB))             -- (1) no undefined behaviour, ever
+  × (∀ σ' → ⟨ s , σ ⟩ ⟶* ⟨ ret ok , σ' ⟩ → σ' ⊨ post c)   -- (2) postcondition
+  × (∀ σ' → ⟨ s , σ ⟩ ⟶* ⟨ err _ , σ' ⟩ → σ' ⊨ errpost c) -- (3) error postcondition
+  × consumed-exactly-once s σ         -- (4) linear resources (Lin.agda)
+  × (∀ σ' → ⟨s,σ⟩ ⟶* σ' → steps ≤ bound c)               -- (5) MaxPlus bound
+----
+
+Proof structure, in the order Phase 1 built it:
+
+. *Adequacy — done for the checked fragment.* `tm-safe` shows that every hazard
+  `tmObls` can see is discharged by a valid obligation, so `safeTm e v` holds;
+  `soundness` is then structural induction over statements, refining the path
+  condition at `assert` and at each branch of `ite`. `exec-id` supplies the one
+  state law the fragment needs: with no store, a statement leaves the valuation
+  alone, so a condition proved at entry is still true at every later point. That
+  lemma is true *only* store-free, and it is the exact reason the fragment is
+  drawn where it is.
+. *Adequacy over words — done separately.* The bitvector gap is closed in
+  `Bv.agda` (`word-inj`, `word-bound`, `no-bound-2^64`, and the coercion bridge).
+  `Core.agda` reasons over `Nat`; the generator emits an explicit range
+  obligation at every lowering, so the two models meet at a stated side condition
+  rather than inside one conflated type.
+. *Progress and preservation over a store, loops, and the heap — Phase 2.*
+. *Linear accounting.* `consumed-exactly-once` is `Lin.exactly-once`; lifting it
+  over the statement structure needs the store the checked fragment does not
+  have, hence Phase 2.
+. *MaxPlus composition.* `bound` is a monoid homomorphism from sequencing to
+  `max`/`+`, so the bound of a sequence follows from the bounds of its parts.
+
+*Status.* All four modules — `Bv`, `Lin`, `Core`, `Soundness` — typecheck under
+`agda --safe --without-K`, with no `postulate`, no termination pragma, no rewrite
+rule, no cubical primitive and no hole. Gate G11 re-runs the check and greps for
+each forbidden construct independently of `--safe`, because a reader should not
+have to take the flag's word for it. Two corollaries make the worked example
+small enough to read: `guarded-safe` proves `len - 12` safe for every state
+satisfying `12 ≤ len`, and `unguarded-not-valid` refutes the obligation for the
+unguarded program with the state `λ _ → 0` — the same `buf_len = 0` model z3
+returns for `V1_needle_drop_requires`.
+
+=== The refinement gap, stated as a non-claim
+
+The checked theorem relates `vc` to `safe`: two Agda functions over the checked
+grammar. It says nothing about a Zig program. Closing that gap needs a
+refinement proof — a simulation between `Stmt` and the subset's operational
+semantics — and, for anything the compiler rewrites, a compiler-correctness or
+translation-validation argument. Atoma claims neither, and the roadmap does not
+schedule them.
+
+The design compensates by keeping the untrusted step small. The seam admits only
+bitvectors, slices with ghost lengths, disjoint named regions, and no aliasing;
+that is small enough to review by hand in Phase 1, and it is the part a
+mechanisation in Phase 2 would have to cover. What the theorem buys meanwhile is
+still concrete: the *generator* is proved sound, so a false "discharged" verdict
+cannot come from `vc` emitting the wrong obligation. It can come from the solver,
+from the encoding of a VC into SMT-LIB, or from the refinement step — and each of
+those is separately attacked: §7.2 for the encoding traps; `atoma vc`, which was
+rewritten from scratch in Zig against a reviewed expectation table
+(`vc/expected.tsv`) and refuses to emit anything for a contract that drifted, for
+the re-derivation; and G7's six counterexample-producing queries for the solver.
+
+=== Why the Agda side is restricted
+
+The Dedukti-CIC subset is a *transport* constraint, not an aesthetic one. Every
+feature outside it has no faithful encoding in Dedukti, so a proof that used it
+could not be exported as a `.dk` witness, and therefore could not be checked by
+`coqchk`/`lean4checker`. The restrictions:
+
+* no cubical primitives (no path types, no `--cubical`, no `--two-level`);
+* no inductive-recursive or inductive-inductive definitions;
+* no rewrite rules, no `{-# REWRITE #-}`;
+* no `postulate`, no `{-# TERMINATING #-}`, no `--allow-unsolved-metas`;
+* structural recursion only — well-founded recursion is replaced by an explicit
+  fuel argument (`Bv.agda`'s truncation is the worked instance: a structural
+  `modStep` on fuel rather than a `<-rec`).
+
+== Verification conditions to certificates
+
+=== The pipeline
+
+[cols="1,2,3,2", options="header"]
+|===
+| Stage | Tool | Artefact | Content address
+
+| contract | Idris2 `encode` / `.zigspec` | `.cspec` | `atoma.cspec.v1`
+| seam check | `atoma equiv` | digest pair | equality of the above
+| subset check | Atoma frontend | `E-*` diagnostics | source hash
+| layout witness | `zig build-obj` + `@compileLog` | `layout.cspec` rows | folded into the seam digest
+| VC generation | Atoma (Ada/SPARK target) | `.smt2` per obligation | `atoma.vc.v1`
+| solving | z3/cvc5 via ECHIDNA | `unsat` + proof trace | solver + version in the cache key
+| Alethe → Dedukti | ECHIDNA exchange | `.dk` | `atoma.dk.v1`
+| kernel check | `dkcheck`, then `coqchk` + `lean4checker --fresh` | receipt | batch digest
+| cache | Proof Burrower | hit/miss | `BLAKE3(.dk)`
+|===
+
+=== The traps
+
+*Bitvector vs mathematical integer.* SMT reasons in `QF_BV` with modular
+arithmetic; the specification is written in `Nat`. Every lowering therefore emits
+a range obligation, and the Agda side states its lemmas over `Fin (2^w)` so the
+two agree. The trap is real and it bit this repository: the first version of
+`V3_intcast_range` had only the upper bound as a premise, and z3 correctly
+returned *sat* with `buf_len_usize = 0`, because `0 - 12` wraps to `2^64 - 12`
+in `BV64` even though it is obviously fine in `Nat`. The fix was to carry the
+no-underflow premise into the bitvector query — the obligation that needs one
+premise over `Nat` needs two over `BV`.
+
+*Empty types and vacuity.* A goal of type `⊥` is proved by anything; a premise of
+type `⊥` proves everything. Two defences: `vc-vacuous` requires the premises to be
+satisfiable, and the error type is non-empty by construction (`error{}` is
+`E-EMPTY-ERRORSET` at the seam, because a function that cannot fail must return
+`void`, not an uninhabited error union).
+
+*Off-by-one at the boundary.* `length <= avail` versus `length < avail + 1`
+differs by exactly one byte and is the canonical CVE shape. The VC set contains
+both the correct query and a mutant of it, and the mutant produces a model
+(`buf_len = 2147483647, length = 2147483636`), not just a failure.
+
+*Layout drift.* A struct whose offsets are transcribed rather than witnessed
+fails on one target only. `V6_mutant_offset_drift` shows the padding VC catching
+a `payload` placed at 12 instead of 16.
+
+=== Specification mutation testing (≥ 95 %)
+
+Mutation testing answers the question the VCs cannot: *would this specification
+have caught the bug?* For each specification mutant, rerun the whole pipeline; a
+mutant is *killed* if any VC becomes invalid or any test fails.
+
+The eleven operators in `atoma mutate` (all applied, all distinct, gate G6):
+
+[cols="2,3", options="header"]
+|===
+| Operator | What it weakens
+
+| `drop_last_requires` | one precondition — the classic vacuity-adjacent edit
+| `drop_last_ensures` | one postcondition
+| `tighten_le` | `≤` → `<` (over-strong: must become unprovable)
+| `laxen_lt` | `<` → `≤` (under-strong: must be killed by tests)
+| `off_by_one` | first literal in the last `ensures`
+| `drop_cap` | removes a capability from the footprint
+| `swap_region` | `r0` → `r1` (aliasing discipline)
+| `qty_lax` | `1` → `W` (linearity weakening)
+| `drop_padding` | removes the padding obligation from `layout`
+| `drop_borrow` | removes a borrow declaration
+| `widen_int` | `u16` → `u32` (ABI width drift)
+|===
+
+Scoring rules, so the number means something:
+
+. Denominator = applied mutants minus *equivalent* mutants, with the exclusion
+  list checked in and reviewed. An operator that produces a semantically
+  identical spec must be listed, not silently dropped.
+. A mutant killed only by a test (not by a VC) still counts, but is reported in a
+  separate column, because it says nothing about the prover.
+. The threshold is 95 % of non-equivalent mutants, plus 100 % on the
+  *vacuity* subset: a mutant that makes the precondition unsatisfiable must never
+  survive.
+
+This repository currently measures only the artefact half (11/11 distinct); the
+kill half needs the ECHIDNA loop and is a Phase 1 exit criterion.
+
+=== From Alethe to Dedukti to a receipt
+
+`COMPLETE` is not awarded by a solver. It is awarded when the content-addressed
+witness has been rechecked by kernels that share no code with the solver:
+
+[source]
+----
+INCOMPLETE (Warrant)   -- VCs discharged, .dk emitted, nothing else
+      │
+      ├─ dkcheck  .dk                        typechecks in Dedukti
+      ├─ coqchk   (zero extra axioms)         the statement is Coq-valid
+      ├─ lean4checker --fresh                 the statement is Lean-valid
+      │
+      ▼
+COMPLETE (Receipt)     -- bound to BLAKE3(.dk) and to the checker versions
+----
+
+The receipt records the digest *and* the TCB: Dedukti, Coq and Lean versions, and
+the axiom list each kernel reported. A receipt that does not name its checkers is
+a claim, not a receipt.
+
+== Worked example: a validated zero-copy frame
+
+All four artefacts live in `examples/atoma/frame-v1` and are exercised by
+`verify.sh`.
+
+=== (a) The Idris2 ABI and contract
+
+`abi/FrameAbi.idr` defines the contract as a value:
+
+[source,idris]
+----
+public export
+frameParse : Contract
+frameParse = MkContract
+  { name   = "atoma.frame.parse"
+  , kind   = "extern"
+  , abiSym = "atoma_frame_parse"
+  , params = [ MkParam "h" QW Handle
+             , MkParam "input" QW SliceU8
+             , MkParam "input_len" Q0 U32
+             , MkParam "out" Q1 PtrOutFrame ]
+  , borrows = [ MkBorrow "input" Shared "r0", MkBorrow "out" Mutable "r1" ]
+  , requires = [ Le (Num 12) (Len "input")
+               , Eq (Len "input") (Var "input_len")
+               , Lt (Var "input_len") (Num 0x100000000)
+               , Or (Eq (Var "h") (Var "null")) (Eq (TagOf "h") (Num handleTag)) ]
+  , ensures = [ Imp (Eq (Var "res") (Num 0)) (Eq (MagicOf "out") (Num frameMagic))
+              , Imp (Eq (Var "res") (Num 0)) (Le (PayloadLen "out") (Sub (Len "input") (Num 12)))
+              , Imp (Neq (Var "res") (Num 0)) (Zeroed "out")
+              , Eq (PadOf "out") (Num 0) ]
+  , assigns = ["r1"]
+  , caps = ["Read r0", "Write r1"]
+  , bounds = MkBounds (Add (Num 12) (Mul (Num 8) (Len "input"))) 64 }
+----
+
+The linear wrapper makes the QTT discipline operational:
+
+[source,idris]
+----
+parseFrame : (1 h : Handle) -> (0 ghostLen : Nat) -> (1 out : PtrOutFrame)
+          -> IO (Either Bits32 ())
+----
+
+`1` on `h` and `out` means an implementation that drops or duplicates either is a
+type error. `0` on `ghostLen` means the length proof erases and costs nothing at
+runtime.
+
+The layout is declared, not derived:
+
+[source,idris]
+----
+frameHeaderFields =
+  [ MkField "magic"    0  2 2
+  , MkField "length"   2  2 2
+  , MkField "flags"    4  1 1
+  , MkField "tag"      5  1 1
+  , MkField "crc"      8  4 4
+  , MkField "reserved" 12 2 2 ]
+
+headerEndsAt : So (endOf frameHeaderFields == 16)
+headerEndsAt = Oh
+----
+
+Only target-independent facts are proved in Idris2. `FrameOut` contains a pointer,
+so its offsets differ on wasm32; those facts come from the compiler witness
+instead of being asserted in a proof that would be false on one target.
+
+=== (b) The Zig implementation
+
+`src/frame_parse.zig` — the verified parser, trimmed to its load-bearing parts:
+
+[source,zig]
+----
+fn parseInto(buf: []const u8, out: *FrameOut) ParseError!void {
+    // the linear obligation: exactly one of these two runs
+    errdefer atoma.zeroBytes(out);
+
+    if (buf.len < HEADER_LEN) return error.Truncated;
+
+    const magic = le16(buf.ptr, 0);
+    if (magic != MAGIC) return error.BadMagic;
+
+    const length: u32 = le16(buf.ptr, 2);
+    if (buf[4] & ~FLAG_COMPRESSED != 0) return error.BadFlags;
+    if (le16(buf.ptr, 10) != 0) return error.BadReserved;
+
+    const avail: u32 = @intCast(buf.len - HEADER_LEN);   // V3: cast range
+    if (length > avail) return error.Truncated;          // V2: bounds
+
+    const payload = buf[HEADER_LEN .. HEADER_LEN + length];
+    const want = le32(buf.ptr, 6);
+    const c = crc32Update(crc32Update(0xFFFF_FFFF, buf[0..6]), payload);
+    if (~c != want) return error.BadCrc;                 // V7: postcondition source
+
+    atoma.zeroBytes(out);                                // V6: padding first
+    out.magic = magic;
+    out.length = @intCast(length);
+    out.flags = buf[4];
+    out.tag = buf[5];
+    out.crc = want;
+    out.payload = buf.ptr + HEADER_LEN;                  // zero copy
+    out.payload_len = length;
+}
+----
+
+and the C shell, which carries every AoRTE obligation of the boundary:
+
+[source,zig]
+----
+export fn atoma_frame_parse(
+    h: ?*const Handle, in_ptr: ?[*]const u8, in_len: u32, out: ?*FrameOut,
+) callconv(.c) Result {
+    const handle = h orelse return .invalid_arg;
+    if (handle.abi_tag != HANDLE_TAG) return .invalid_arg;
+    const p = in_ptr orelse return .invalid_arg;
+    const dst = out orelse return .invalid_arg;
+    parseInto(p[0..in_len], dst) catch |e| return mapError(e);
+    return .ok;
+}
+----
+
+Note what is *absent*: no `.?`, no `unreachable`, no `@ptrCast`, no allocator, no
+global `var`, no `[*c]`, no `@setRuntimeSafety(false)`. The four `orelse` returns are the entire
+null discipline, and they are total.
+
+`atoma.zeroBytes` is the one sanctioned pointer-cast-shaped operation in the
+subset. Its soundness argument is one line and is checked by the padding VC:
+`asBytes` yields exactly `@sizeOf(T)` writable bytes of a live object, and
+`@memset` writes each once, so no byte of the target is undefined afterwards.
+
+=== (c) The generated VCs
+
+Fourteen obligations, generated and discharged by z3 from the `.smt2` artefacts in
+`vc/` (gate G7). The table is the actual tool output:
+
+[cols="3,1,1,4", options="header"]
+|===
+| VC | want | z3 | Meaning
+
+| `V1_no_underflow` | unsat | unsat | `buf.len - 12` cannot wrap once `len ≥ 12`
+| `V1_needle_drop_requires` | sat | sat | without that premise: model `buf_len = 0` (the panic)
+| `V2_slice_in_bounds` | unsat | unsat | `12 + length ≤ buf.len`
+| `V2_needle_drop_payload_bound` | sat | sat | model `buf_len=12, length=1` — one byte past the end
+| `V2_mutant_off_by_one` | sat | sat | `avail + 1` admits exactly one byte too many
+| `V3_intcast_range` | unsat | unsat | `usize → u32` cast cannot trap
+| `V3_needle_drop_ffi_bound` | sat | sat | called with a >4 GiB slice, it panics
+| `V4_maxplus_bound` | unsat | unsat | `8·len + 12 < 2^32`, so the cost fits the domain
+| `V5_magic_wire_order` | unsat | unsat | bytes `'A','T'` decode to `0x5441`
+| `V5_mutant_wrong_endian` | unsat | unsat | the "obvious" `0x4154` is refuted by the same bytes
+| `V6_padding_zeroed` | unsat | unsat | every padding byte keeps its `0x00`
+| `V6_mutant_offset_drift` | sat | sat | `payload` @12 writes into the padding hole 12..16
+| `V7_post_payload_len` | unsat | unsat | success postcondition follows from the guard
+| `V8_premise_satisfiable` | sat | sat | the precondition is not contradictory
+|===
+
+The whole VC set has one content address,
+`blake3:dec3d83389ef29f4ec5d49805ba527f92fef6224b0613a98393ed7f1c69ce35d`.
+Eight queries are *discharged* (unsat: the obligation holds); six are
+*counterexample-producing* (sat: either a deliberately weakened premise, or a
+deliberate bug, with a model that names the failure).
+
+=== (d) How each bug class fails, and how mutation catches a weakened spec
+
+*Off-by-one slice bound.* Change the guard to `length > avail + 1`. `V2_slice_in_bounds`
+is unchanged and still valid — the *implementation* changed, not the contract — so
+the pipeline regenerates VCs from the new code, where the guard now only
+establishes `length ≤ avail + 1`. The regenerated bound query becomes
+`12 + length ≤ buf.len` under the weaker premise, z3 returns *sat*, and the model
+is one byte past the end. In the worked example this is pinned as
+`V2_mutant_off_by_one`.
+
+*Unzeroed padding.* Delete `atoma.zeroBytes(out)` before the field writes. Value
+assignment leaves bytes 6..8, 12..16 and 28..32 undefined on 64-bit targets.
+`V6_padding_zeroed` becomes *sat*: some padding byte is not `0x00` for some field
+values. The same VC catches the subtler variant where a field was placed at a
+drifted offset (`V6_mutant_offset_drift`), which is how a transcription error in a
+layout table presents itself.
+
+*Leaked linear handle on an early error path.* If `atoma_iter_open` succeeds and a
+later step returns before `atoma_iter_close`, the handle's `live` bit stays set and
+`atoma_handle_destroy` returns `.busy`. The proof obligation is not an SMT query:
+it is `Lin.agda`'s `theorem-rel-once`, instantiated with the body's step list, plus
+the test `iterator leases are linear: leak is detected, close releases`, which
+demonstrates the refusal at runtime. This is the deliberate split: *control-flow
+linearity is proved once in the metatheory; its instantiation is checked by
+quantities in Idris2 and by tests at the boundary.*
+
+*A weakened spec.* `atoma mutate` produces `drop_last_ensures`, which deletes the
+`payload_len ≤ input_len - 12` clause. The implementation is untouched, the VCs
+regenerate, and where the postcondition used to be checked there is now nothing to
+check — so `V7` disappears from the obligation set. That is *not* a failed query;
+it is a missing one. This is precisely why mutation testing is mandatory and why
+"all VCs pass" is not a claim of correctness: a pipeline that only asks the
+questions the spec contains cannot notice a deleted question. The kill test is
+"does the *set* of VCs shrink or weaken?", which is answered by re-running the
+mutation harness, not by the solver.
+
+*The vacuity escape.* `drop_last_requires` plus a contradictory remaining premise
+would make every remaining VC trivially unsat. `V8_premise_satisfiable` is the
+guard against this, and the mutation score treats "premise became unsatisfiable"
+as an automatic kill regardless of what the other queries say.
+
+== Integration
+
+=== `zig build verify`
+
+A single step, ordered so that cheap failures come first:
+
+[source,bash]
+----
+zig build verify
+  # 1  atoma extract      Zig doc comments → Face B .cspec           (G8)
+  # 2  atoma seam         Face A vs Face B, hash equality           (G5)
+  # 3  atoma subset       E-* diagnostics over every export fn      (G9, G10)
+  # 4  layout.sh          comptime witnesses for each target        (G3, G4)
+  # 5  atoma vc           .cspec + core IR → .smt2                  (G7 input)
+  # 6  agda               the §6.3 theorem, --safe --without-K      (G11)
+  # 7  echidna dispatch   Why3 / z3 / cvc5 → Alethe → .dk
+  # 8  dkcheck, coqchk, lean4checker                                (§7.4)
+  # 9  atoma receipt      write witness/<phase>.receipt.json
+----
+
+Steps 1–6 are implemented for the worked example as `verify.sh` (the same
+sequence without the Zig build graph), which is why the receipt it writes has
+real digests rather than placeholders. Step 2 compares Face A as *transcribed*
+from the Idris2 module; regenerating Face A from Idris2 is F0.1 and still
+unrun (§2.1). Steps 7–9 are Phase 1. The Zig build graph itself is Phase 1 work;
+`verify.sh` remains the executable specification of what that step must do.
+
+=== `echidnabot` badges
+
+The badge must distinguish *what* was proved, not merely that something was:
+
+[cols="2,2,3", options="header"]
+|===
+| Badge | Means | When
+
+| `atoma: phase0 · warrant` | contract and layout locked, VCs discharged, no kernel check | now
+| `atoma: phase1 · warrant` | + AoRTE over the scalar/slice surface | Phase 1
+| `atoma: phase1 · receipt` | + `.dk` rechecked by coqchk and lean4checker | Phase 1 exit
+| `atoma: phase3 · receipt · <contract-hash>` | full ladder, bound to a specific contract | Phase 3
+|===
+
+A badge never says "verified". It names a phase, a class (Warrant or Receipt) and
+the contract digest, so a reader can tell exactly which theorem is behind it.
+
+=== Proof Burrower cache
+
+Key: `BLAKE3(.dk)` under the `atoma.dk.v1` domain. Value: the kernel-check results
+together with the checker identities and versions, because a receipt is only as
+good as the kernels that produced it. A cache hit skips rechecking only when the
+recorded TCB matches the current one; otherwise it is a miss. The cache never
+stores a solver's claim, only a kernel's verdict.
+
+== Roadmap
+
+Each phase has an exit criterion that is a *gate*, a falsifier that says "this
+phase failed", and a non-claim that bounds what the phase licenses.
+
+=== Phase 0 — Layout and signature lock
+
+*Goal:* the seam cannot drift silently.
+
+*Deliverables:* `.cspec` IR + canonicaliser; Idris2 contract module; comptime
+layout witness for four target classes; seam-equivalence gate; mutation-artefact
+sweep; VC set for the example; `extract`/`check` frontend; negative corpus.
+
+*Exit criteria:* gates G1–G11 green. *Met here* except F0.1 (Idris2 typecheck),
+which is the one unrun gate, and G7/G11's conditional nature (they skip to
+`not-run` without z3/agda rather than claiming a pass).
+
+*Falsifiers:* a face pair that hashes equal while the specs differ (canonicaliser
+unsound); a layout row that the compiler confirms on x86_64 and rejects on wasm32
+without failing the gate; a `usize` field accepted at the seam; a `export fn`
+whose directive block silently stops being a contract (G8 catches drift only
+because it re-extracts, and it is worth asking what it would take to fool it); a
+banned construct that the checker waves through (G10's corpus is the standing
+attempt to fool it).
+
+*Non-claims:* nothing about runtime behaviour. Phase 0 proves that the *document*
+and the *declaration* agree, and that the declaration matches the compiler on four
+targets.
+
+=== Phase 1 — AoRTE and the scalar/slice FFI MVP
+
+*Goal:* every `export fn` in the subset is panic-free, and no UB state is
+reachable.
+
+*Deliverables:* the full VC generator; ECHIDNA integration; `.dk` emission;
+`dkcheck` + `coqchk` + `lean4checker` in CI; mutation kill score over the spec
+corpus. `Core.agda` and `Soundness.agda` exist and check (§6.3) for the
+*store-free* fragment; extending them to the store, `while`, and the two
+postcondition clauses is the remainder of this phase's metatheory.
+
+*Exit criteria:* mutation kill ≥ 95 % on non-equivalent mutants, 100 % on
+vacuity; a `COMPLETE (Receipt)` for `atoma.frame.parse`; the soundness theorem
+covers store, loops and postconditions — still with no postulates and no holes.
+
+*Falsifiers:* a VC that is valid but whose Alethe trace does not reconstruct in
+Dedukti (the pipeline is then not a proof pipeline); a killed mutant that required
+a hand-written lemma (the automation is not general enough); any `believe_me`,
+`postulate`, `Admitted`, `sorry` or `--allow-unsolved-metas` in the trusted tree.
+
+*Non-claims:* no heap, no allocation, no callbacks, no recursion. "AoRTE" here
+means *for the subset*, and the subset is small on purpose.
+
+=== Phase 2 — Linear ownership and regions
+
+*Goal:* `defer`/`errdefer` discipline at scale, allocators as explicit
+capabilities, bounded recursion.
+
+*Deliverables:* region inference for `assigns`; `ephapax`-style L1/L2 borrow
+checking beyond the signature; `Allocator` capability threading under MPR;
+`Echo` types on every lossy conversion (`@truncate`, error-code collapse, drops);
+structural `@decreases` for recursion; ZIR fingerprints for cache keys.
+
+*Exit criteria:* a real FFI surface (more than one handle, more than one region)
+verified end to end; a leak injected on an `errdefer` path is caught without a
+test; the borrow discipline rejects a double-mutable-borrow fixture.
+
+*Falsifiers:* a leak that both the proofs and the tests miss; a region rule that
+requires separation logic (the phase has overreached); an `Echo` witness that
+cannot be expressed in the IR.
+
+*Non-claims:* still no concurrency, still no general heap reasoning, still no
+claim about code outside the subset.
+
+=== Phase 3 — Cost, stack, and secrecy
+
+*Goal:* the resource and information-flow layer.
+
+*Deliverables:* `tropical-types` `MaxPlus` bounds as VCs over the cost domain
+(not just the worked example's arithmetic); `occupancy-types` HWM with a stack
+model; `secret-types` lattice noninterference including the padding rule (a
+padding byte that still holds secret data is a leak, and `zeroBytes` is the fix,
+so the padding VC becomes a *secrecy* VC as well); constant-time bounds for the
+comparison paths that touch secrets.
+
+*Exit criteria:* a secret-dependent branch is rejected; a padding leak is rejected
+by the secrecy analysis even when the memory-safety VC passes; MaxPlus bounds are
+proved, not asserted.
+
+*Falsifiers:* a proven bound that a fuzz run exceeds (the cost model is wrong); a
+constant-time claim that the generated code violates at `-O ReleaseFast`.
+
+*Non-claims:* Atoma never claims that Zig the compiler is correct, that LLVM is
+correct, or that the target CPU honours the memory model. The TCB is named in
+every receipt: Idris2, Agda, Dedukti, Coq, Lean, and their versions.
+
+=== Non-claims, collected
+
+. Not full functional correctness. Atoma proves safety properties and the
+  postconditions *you write*; it does not prove your postcondition is the right one.
+. Not semantic equivalence of the two faces — only canonical-byte equality.
+. Not a refinement theorem. `soundness` relates two Agda functions; the step
+  from `Stmt` to a compiled Zig function is reviewed, not proved (§6.4), and
+  `atoma check` is a token scan, not a type system.
+. Not a borrow checker for heap data; regions are named and finite.
+. Not sound for Zig outside the subset, and the subset is enforced by rejection,
+  not by best effort.
+. Not a proof about the Zig compiler, LLVM, or the hardware.
+. Not concurrency, not `async`, not atomics.
+. Not a replacement for tests: mutation testing exists precisely because proofs
+  answer questions, and tests catch questions that were never asked.
+
+== Appendix A: reproducing every claim
+
+[source,bash]
+----
+# tool (pinned to Zig 0.15.2; .zig-version)
+cd tools/atoma && zig build test && zig build && ./zig-out/bin/atoma selftest
+
+# put the CLI on PATH
+export PATH="$PWD/tools/atoma/zig-out/bin:$PATH"
+
+# the full Phase 0 gate: G1..G11 + receipt
+cd examples/atoma/frame-v1 && ./verify.sh
+
+# individual gates
+zig test src/frame_parse.zig                                    # G1
+./tools/layout.sh                                               # G3
+zig build-obj tools/layout_negative.zig -target wasm32-freestanding -fno-emit-bin  # G4, must fail
+atoma equiv spec/face-a.cspec spec/face-b.cspec                 # G5
+atoma extract src/frame_parse.zig --symbol atoma_frame_parse    # G8
+atoma check src/frame_parse.zig                                 # G9
+atoma check fixtures/violations.zig                             # G10, must exit 1
+atoma vc vc/.gen --cspec spec/face-b.cspec                      # G7 (then z3)
+
+# metatheory (G11) — four modules, --safe --without-K, no postulates
+../../../verification/atoma/check-agda.sh
+# equivalently, one module at a time:
+cd verification/atoma/agda
+for m in Bv Lin Core Soundness; do agda --safe --without-K "$m.agda" || exit 1; done
+----
+
+`verify.sh` exits 0 only when every gate that can run here passes, and writes
+`witness/phase0.receipt.json` with the digests it observed — including
+`"proof":{"modules":4,"srcset":"blake3:…","status":"checked"}`, so a receipt
+binds the theorem it used. The status line still says `INCOMPLETE (Warrant)` on
+purpose: `"proof":"checked"` means the *metatheory* typechecks, never that a Zig
+program has a receipt.
+
+== Appendix B: repository map for this work
+
+[cols="2,4", options="header"]
+|===
+| Path | What lives there
+
+| `docs/plan/ULTRAPLAN.adoc` | the delivery plan: milestones, tasks, gates, blocked work
+| `tools/atoma/` | the CLI: `canon`, `hash`, `vc-hash`, `dk-hash`, `src-hash`, `extract`, `check`, `vc`, `equiv`, `mutate`, `ops`, `selftest`
+| `tools/atoma/src/frontend.zig` | `extract` (doc comments → Face B) and `check` (subset diagnostics)
+| `tools/atoma/src/vc.zig` | `vc`: the 14 SMT-LIB queries, pinned to the contract by `checkContract`
+| `examples/atoma/frame-v1/abi/` | Idris2 contract (Face A), package file, linearity negative tests
+| `examples/atoma/frame-v1/spec/` | Face A and Face B `.cspec`, witnessed layout table
+| `examples/atoma/frame-v1/src/` | `frame_parse.zig` (the verified function), `atoma.zig` (trusted runtime primitives)
+| `examples/atoma/frame-v1/tools/` | layout witness, layout oracle, negative fixture, `layout.sh`
+| `examples/atoma/frame-v1/vc/` | 14 `.smt2` artefacts (generated by `atoma vc`, never hand-edited) + `expected.tsv`, the reviewed verdict table
+| `examples/atoma/frame-v1/fixtures/` | `violations.zig`, the negative corpus G10 rejects
+| `examples/atoma/frame-v1/witness/` | the Phase 0 receipt, the VC/subset/violations reports
+| `verification/atoma/agda/` | `Bv.agda` (bitvector bridge), `Lin.agda` (linear cleanup), `Core.agda` (language + VC generator), `Soundness.agda` (the §6.3 theorem)
+| `verification/atoma/check-agda.sh` | runs all four modules under `--safe --without-K` (gate G11)
+|===
+
+== Appendix C: glossary
+
+[cols="1,4", options="header"]
+|===
+| Term | Meaning here
+
+| Warrant | a claim with VCs discharged but no kernel check; may still be wrong
+| Receipt | a claim whose `.dk` witness passed `dkcheck`, `coqchk` and `lean4checker --fresh`
+| Seam | the C ABI boundary between Idris2-described contracts and Zig implementations
+| Face A / Face B | the Idris2-derived contract / the Zig-written contract
+| Ghost length | a `0`-quantity length carried only for proofs, erased at runtime
+| Region | a named, finite storage area (`r0`, `r1`) that bounds aliasing
+| MPR | the syntactic capability footprint: what the callee may touch, stated up front
+| Echo | the structured residue of a lossy conversion (`Echo f y := Σx, f x = y`)
+| HWM | high-water mark: maximum simultaneously-live stack
+| MaxPlus | the max-plus semiring used for worst-case cost bounds
+| Vacuous | a specification whose premises are unsatisfiable, and which therefore proves nothing
+|===

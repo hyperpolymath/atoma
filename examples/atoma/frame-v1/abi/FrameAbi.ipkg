@@ -1,0 +1,22 @@
+-- SPDX-License-Identifier: MPL-2.0
+-- SPDX-FileCopyrightText: 2026 Jonathan D.A. Jewell <j.d.a.jewell@open.ac.uk>
+--
+-- Idris2 package for the frame-v1 ABI contract (Face A).
+--
+--   idris2 --typecheck abi/FrameAbi.ipkg      # gate F0.1
+--   idris2 --exec extract FrameAbi           # would print the canonical .cspec
+--
+-- `depends = base` only: the contract must not depend on libraries whose
+-- semantics are themselves unproved.
+
+package frameabi
+
+version = 0.1.0
+authors = "Jonathan D.A. Jewell"
+brief = "Normative Atoma ABI contract for the frame-v1 worked example"
+
+sourcedir = "."
+
+depends = base
+
+modules = FrameAbi

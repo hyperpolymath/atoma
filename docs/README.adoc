@@ -13,6 +13,8 @@ and CI fails if it goes stale, so prefer it over any hand-written listing.
 * link:onboarding/QUICKSTART-MAINTAINER.adoc[QUICKSTART-MAINTAINER] — maintaining one.
 * link:AI_INSTALLATION_GUIDE.adoc[AI_INSTALLATION_GUIDE] — for an AI agent instantiating the template.
 * link:EXPLAINME.adoc[EXPLAINME] — how the pieces actually work.
+* link:plan/ULTRAPLAN.adoc[ULTRAPLAN] — what to do next, in what order, with the
+  acceptance command for every task. Read this before picking up work.
 
 == The tracks
 
@@ -27,6 +29,7 @@ and CI fails if it goes stale, so prefer it over any hand-written listing.
 | `governance/`    | Governance model, maintenance checklist, development approach, audits, planning.
 | `legal/`         | Licence exhibits.
 | `onboarding/`    | Quickstarts and the LLM warm-up documents.
+| `plan/`          | The ultraplan: milestones, task cards, gates and blocked work.
 | `practice/`      | Operational and implementation material, incl. AI conventions.
 | `proposals/`     | Proposals and RFCs, including the root-cleanup proposal this layout came from.
 | `reports/`       | Generated and periodic reports (audit, compliance, security, ...).
