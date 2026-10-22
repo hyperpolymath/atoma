@@ -53,6 +53,16 @@ die() {
 
 [ -x "$ADDR" ] || (cd "$root/tools/atoma" && "$ZIG" build >/dev/null) || die "cannot build atoma"
 
+# Count the tool's own tests instead of hard-coding a number that can drift.
+atoma_tests=0
+for m in canon frontend; do
+    n=$("$ZIG" test "$root/tools/atoma/src/$m.zig" 2>&1 |
+        sed -n 's/^All \([0-9][0-9]*\) tests passed\.$/\1/p')
+    [ -n "$n" ] || die "cannot count the tests in $m.zig"
+    atoma_tests=$((atoma_tests + n))
+done
+printf 'atoma %s tests (canon + frontend)\n' "$atoma_tests"
+
 cd "$here"
 
 # ── G1: subset conformance + unit tests ─────────────────────────────────────
@@ -209,7 +219,7 @@ printf '%s' \
     "\"status\":\"INCOMPLETE\",\"status_class\":\"Warrant\"," \
     "\"subset\":{\"contracts\":6,\"diagnostics_negative_corpus\":$diags,\"codes_negative_corpus\":$codes}," \
     "\"targets\":[\"aarch64\",\"riscv64\",\"wasm32\",\"x86_64\"]," \
-    "\"tests\":{\"atoma\":14,\"frame_parse\":11}}" > "$receipt"
+    "\"tests\":{\"atoma\":$atoma_tests,\"frame_parse\":11}}" > "$receipt"
 printf '\nreceipt: %s\n' "$receipt"
 cat "$receipt"
 printf '\n'

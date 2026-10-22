@@ -557,6 +557,23 @@ test "blake3 known-answer" {
     );
 }
 
+// R8 is a claim about *domain separation*: the same bytes hashed in two roles
+// must not collide. This is cheap to test and the failure mode (a witness hash
+// equal to a spec hash) would be silent, so it is tested rather than assumed.
+test "domains separate" {
+    const bytes = "cspec 1\ncontract x\n";
+    const spec = digestHex(domain_spec, bytes);
+    const vc = digestHex(domain_vc, bytes);
+    const dk = digestHex(domain_dk, bytes);
+    const src = digestHex(domain_src, bytes);
+    try testing.expect(!std.mem.eql(u8, &spec, &vc));
+    try testing.expect(!std.mem.eql(u8, &spec, &dk));
+    try testing.expect(!std.mem.eql(u8, &spec, &src));
+    try testing.expect(!std.mem.eql(u8, &vc, &dk));
+    try testing.expect(!std.mem.eql(u8, &vc, &src));
+    try testing.expect(!std.mem.eql(u8, &dk, &src));
+}
+
 test "integer normalisation" {
     try testing.expectEqualStrings("16", try normaliseInteger(ta, "0x10"));
     try testing.expectEqualStrings("1000", try normaliseInteger(ta, "1_000"));

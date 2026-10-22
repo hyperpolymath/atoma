@@ -529,6 +529,17 @@ padding byte, which in Zig requires an explicit byte-level operation
 (`atoma.zeroBytes`). A value assignment `out.* = .{...}` does not define padding
 and therefore cannot discharge `pad`.
 
+*Status.* Two of those obligations — subtraction underflow and division by zero —
+are modelled in the checked core language, and §6.3 proves that the generator's
+obligations for them are sufficient. The other eight are emitted by the VC
+generator and discharged by the solver for the worked example (§8.3), but their
+*adequacy* — that the SMT encoding of an `@intCast` range, or of a struct's
+padding bytes, means what the prose says — is argued rather than proved. That
+argument is exactly what the traps of §7.2 enumerate, and it is reviewed rather
+than mechanised. The distinction is worth keeping sharp: a discharged
+`V6_padding_zeroed` is strong evidence; the theorem of §6.3 is a proof of a
+strictly smaller statement.
+
 === Control flow, resources, and cost
 
 *Loops.* `while` requires an `@invariant` and a `@decreases` term. `for` over a
