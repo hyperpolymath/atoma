@@ -1,17 +1,42 @@
 cff-version: 1.2.0
 message: "If you use this software, please cite it as below."
 authors:
-  - family-names: "{{AUTHOR_LAST}}"
-    given-names: "{{AUTHOR_FIRST}}"
-    orcid: "https://orcid.org/{{AUTHOR_ORCID}}"
-title: "{{PROJECT_NAME}}"
-version: 0.1.0
-date-released: "{{CURRENT_DATE}}"
-url: "https://{{FORGE}}/{{OWNER}}/{{REPO}}"
-repository-code: "https://{{FORGE}}/{{OWNER}}/{{REPO}}"
+  - family-names: "Jewell"
+    given-names: "Jonathan D.A."
+    website: "https://github.com/hyperpolymath"
+title: "Atoma"
+abstract: >-
+  Atoma is a verification toolchain for Zig at the Idris2 ABI seam. It takes the
+  contract a repository already declares in Idris2 and the contract its Zig
+  export fn already documents, canonicalises both into one hash-checked Core
+  Spec IR, checks the implementation against a deliberately small verifiable
+  subset of Zig, and derives SMT verification conditions from the result. The
+  shape is Ada/SPARK or Rust/Creusot: one name for the subset, the contracts and
+  the toolchain. Witnesses are intended to be exported as canonical Dedukti and
+  rechecked by coqchk and lean4checker before any claim is promoted from
+  INCOMPLETE (Warrant) to COMPLETE (Receipt). Status: Phase 0/1 - the seam,
+  layout, subset and VC gates run and the soundness theorem typechecks for a
+  store-free core fragment; the kernel chain is specified, not yet run.
+version: "0.1.0"
+date-released: "2026-10-22"
+url: "https://github.com/hyperpolymath/atoma"
+repository-code: "https://github.com/hyperpolymath/atoma"
 license: MPL-2.0
 keywords:
-  - "rsr"
+  - "atoma"
+  - "zig"
+  - "idris2"
+  - "agda"
   - "formal-verification"
-  - "neurosymbolic"
-  - "provenance"
+  - "formal-methods"
+  - "dependent-types"
+  - "qtt"
+  - "contracts"
+  - "ffi"
+  - "c-abi"
+  - "smt-lib"
+  - "z3"
+  - "dedukti"
+  - "proof-carrying-code"
+  - "coq"
+  - "lean4"
