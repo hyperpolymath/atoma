@@ -12,6 +12,9 @@
   example, and the phased roadmap with falsifiers and non-claims.
 |===
 
+The *delivery* counterpart is link:../plan/ULTRAPLAN.adoc[the ultraplan]: it
+turns this specification's open items into ordered tasks with acceptance gates.
+
 Start with the *claims ledger* at the top of `ATOMA-SPEC.adoc`: it states which
 of the document's own claims are machine-checked in this repository and which are
 specified only. The executable counterpart of the specification is

@@ -1,0 +1,1413 @@
+// SPDX-License-Identifier: CC-BY-SA-4.0
+// SPDX-FileCopyrightText: 2026 Jonathan D.A. Jewell <j.d.a.jewell@open.ac.uk>
+= Atoma — Ultraplan
+:subtitle: Execution plan for agents and people · revision 1 · 2026-10-22
+:toc:
+:toclevels: 3
+:sectnums:
+
+[abstract]
+--
+This is the working plan for Atoma, the verification toolchain specified in
+`docs/spec/ATOMA-SPEC.adoc`. The specification says *what must be true*. This
+document says *who does what next, in which order, and how anyone — human or
+agent — can tell whether it worked*.
+
+It is written to survive the reader's absence of context. A fresh agent with a
+cold clone, no network history and no memory of the decisions that produced the
+current tree should be able to open this file, run one command, see green or
+red, pick up a task, and not repeat a mistake already paid for.
+
+Three properties are deliberate. Every task has an **acceptance command** — not
+a description of success, a command whose exit status decides. Every task has a
+**falsifier** — the observation that would show the work is wrong even though
+the command passed. And every task names its **blocker** honestly, because a
+plan that hides a missing toolchain teaches the next agent to fake the result.
+--
+
+[[how-to-use]]
+== How to use this document
+
+=== Reading order
+
+If you are new to the repository, read in this order and stop when you have
+enough:
+
+. This section (five minutes).
+. <<state>> — what is actually true today, with digests (§2).
+. <<gates>> — the gate table; if a gate is red, that is your first task.
+. The track you are picking work from (§7–§12).
+. `docs/spec/ATOMA-SPEC.adoc` §1 (claims ledger) and §6 (semantics) before you
+  touch anything that claims soundness.
+
+If you are resuming work, skip to <<board>> and read the task cards flagged
+`in-progress` or `blocked`.
+
+=== Task IDs and status
+
+Task IDs are of the form `<track><number>`: `A` identity and estate, `K` kernel
+chain, `T` theory, `S` subset, `C` cost and secrecy, `H` hardening. **IDs are
+stable.** Never renumber. If a task is split, the new part becomes `A7b`; if a
+task is dropped, its card stays and its status becomes `dropped (reason)` so the
+history of the decision survives.
+
+Every card carries a status line with one of five values:
+
+[cols="1,3", options="header"]
+|===
+| Status | Means
+
+| `todo` | Not started, not blocked. Available to whoever gets there first.
+| `in-progress` | Someone has claimed it. The claim is the commit, not a message.
+| `blocked` | Cannot proceed without the named thing. Do not stub around it.
+| `done (evidence: …)` | The acceptance command was run and its output is quoted in the commit or the receipt.
+| `dropped (reason)` | Deliberately not doing it. The reason is part of the record.
+|===
+
+`blocked` is a first-class outcome. A task blocked on a missing binary is *not*
+"done for now", and the receipt must not be nudged upward to make the board look
+better. The estate has a phrase for the failure this prevents: a gate that
+cannot run must never report OK.
+
+=== The seven rules
+
+. **No silent green.** Every claim is a field in a receipt or a line of gate
+  output. If a tool is absent, the gate prints `not-run` and the status stays
+  `INCOMPLETE (Warrant)`.
+. **The specification is the source of truth for *what*; this plan is the source
+  of truth for *when*.** If they disagree, the specification wins and this plan
+  gets fixed in the same commit.
+. **One name.** Atoma, everywhere: binary, directories, contract domains, wire
+  magic. If a `zigprove` or `zp_` token appears, it is a bug, not a legacy.
+. **Never invent the solver runner.** ECHIDNA dispatches Why3/z3/cvc5 and owns
+  the Alethe→Dedukti road. Atoma produces obligations and consumes certificates.
+  A second runner is a second thing to trust.
+. **Watch the test fail.** Before trusting a gate, break the thing it guards and
+  confirm it goes red. This is written down because four gates in this repo's
+  history could not fail (§15).
+. **Small trusted tree, replaceable untrusted tree.** CLI, canonicaliser, VC
+  generator: replaceable. `Core.agda`, `Soundness.agda`, the Idris2 contract, the
+  kernel verdicts: not.
+. **Ask before you mint.** Anything that rewrites repository identity
+  (`just repo-init`), force-pushes, or changes visibility is an owner action.
+  Agents prepare the change and hand it over.
+
+== Where the work stands
+
+[[state]]
+=== Verified today (2026-10-22, commit `f5194f1`)
+
+Every row below was produced by a command in this session, not recalled. Full
+digests are in `examples/atoma/frame-v1/witness/phase0.receipt.json`.
+
+[cols="1,4,3", options="header"]
+|===
+| Gate | What it proves | Result
+
+| G1 | `frame_parse.zig` unit tests | 11/11 on Zig 0.15.2 and 0.16.0
+| G2 | Four ABI target classes compile | x86_64, aarch64, riscv64, wasm32
+| G3 | 60 declared layout rows witnessed by the compiler | 4 targets, 0 mismatch
+| G4 | A pointer-width struct is rejected on wasm32 (F0.3) | rejected, as required
+| G5 | Face A and Face B canonicalise to the same bytes | `blake3:f5f97a7b…f265756`
+| G5 | A one-token edit diverges (equivalence is not vacuous) | `blake3:d49201f2…ffca70`
+| G6 | 11 mutation operators give 11 distinct artefacts | 11 applied, 11 distinct
+| G7 | 14 SMT obligations discharged by z3 5.3.1 | `blake3:72c74c01…5e3698`
+| G8 | Face B is *extracted* from Zig, not hand-maintained | `blake3:ee4d77f0…eb2358`
+| G9 | The implementation is subset-clean | 6 exports, 6 contracts, 0 diagnostics
+| G10 | The subset checker is not vacuous | 20 diagnostics over 17 codes
+| G11 | The Agda metatheory typechecks | 4 modules, `blake3:e2b2f961…647249`
+| — | The tool's own tests | 15 (9 canon + 6 frontend)
+|===
+
+The metatheory, precisely: `Bv`, `Lin`, `Core`, `Soundness` all check under
+`agda --safe --without-K` (Agda 2.7.0.1), with no `postulate`, no termination
+pragma, no rewrite rule, no cubical primitive and no hole. `soundness` relates
+`vc` to `safe` for the **store-free** fragment; §6.3 of the specification states
+its type verbatim. `exec-id` — "a statement never changes the valuation" — is
+the lemma the proof turns on, and it is true only because the fragment has no
+store.
+
+=== Not verified — and never to be implied
+
+* No `.dk` file exists. Nothing has been through `dkcheck`, `coqchk` or
+  `lean4checker`. The receipt's `status_class` is `Warrant`, and must stay so.
+* No mutation **kill** score. The 11 distinct artefacts are the easy half; the
+  kill half needs the ECHIDNA loop (K6).
+* No Idris2 typecheck. `abi/FrameAbi.idr` is normative text and has never been
+  compiled here; gate F0.1 is unrun (T5).
+* No refinement theorem. `soundness` relates two Agda functions. The step to a
+  compiled Zig function is reviewed, not proved, and is non-claim N3 (§6.4).
+* `atoma check` is a token scan. It resolves no names, evaluates no `comptime`,
+  computes no layout. It is not a type checker and must not be described as one.
+
+=== The four structural gaps
+
+These are why the plan exists. They are not bugs; they are the distance between
+"the design is specified and Phase 0 runs" and "the tool is what it says".
+
+. **Identity.** 88 tracked files still carry `{{PLACEHOLDER}}` tokens;
+  `bash scripts/check-no-placeholders.sh` exits 1; the repo deed still says
+  `rsr-template-repo`; the GitHub About box and topics are empty. (A1, A2)
+. **Kernel chain.** The obligations are discharged by a solver whose answer is
+  trusted, not checked. Until a `.dk` survives three kernels, everything above
+  `Warrant` is a promise. (K2–K9)
+. **Theory width.** The checked theorem covers hazard sites in a store-free
+  fragment: no store, no loops, no postconditions, no linearity lift. (T1–T4)
+. **Estate conformance.** Atoma's Agda sits outside the proof manifest, so
+  `just proof-check-agda` does not see it; the VC generator is Python, which the
+  estate toolchain policy forbids; CI has no Atoma gate. (A3–A6)
+
+== Invariants
+
+These hold for every change, forever, unless the owner amends the specification.
+
+[cols="1,5", options="header"]
+|===
+| ID | Invariant
+
+| I1 | Core ABIs, AST/IR schemas and contract representations are Idris2 with `%default total`; zero `believe_me`, zero `assert_total`, zero `postulate`.
+| I2 | Checker and VC-generator logic outside Idris2/Agda is Ada/SPARK or Rust-with-Creusot, strictly separated from untrusted CLI and process I/O.
+| I3 | Agda semantics is `--safe --without-K`, inside the Dedukti-CIC subset: indexed inductives and structural eliminators; no inductive-recursion, no cubical, no rewrite rules.
+| I4 | A witness is `.dk`, content-addressed by `BLAKE3` under `atoma.dk.v1`, and `INCOMPLETE (Warrant)` until **both** `coqchk` (zero extra axioms) and `lean4checker --fresh` accept it.
+| I5 | ECHIDNA owns dispatch, solving and exchange; Proof Burrower owns the `.dk` cache. Atoma adds no solver runner.
+| I6 | `[*c]T` is banned. `[*]T` exists only bound by an Idris2 ghost length. `@ptrFromInt`, arbitrary `@ptrCast`, `volatile`, inline `asm`, `@cImport`, mutable globals and unbounded recursion are quarantined or banned (spec §3).
+| I7 | Every committed file has an SPDX header (`MPL-2.0` code, `CC-BY-SA-4.0` docs). Documentation is AsciiDoc. No `.md` under `docs/`.
+| I8 | Every generated artefact is regenerated, not hand-edited: `spec/face-b.cspec` (G8), `docs/architecture/REPOSITORY-MAP.adoc`, the receipt.
+| I9 | One name: Atoma. No `zigprove`, no `zp_`, no `ZPV1`, no second project name.
+| I10 | Any claim added to the specification gets a row in the claims ledger, with a gate or an explicit `not checked`.
+| I11 | No new implementation language outside the estate policy; no Python in a path the gates depend on after A6.
+| I12 | `../spec/face-a.cspec` is normative text until F0.1 replaces it with `encode frameParse` output.
+|===
+
+== Environment
+
+Atoma needs three toolchains that are not in a default image. The recipes below
+were run on 2026-10-22 and are the ones to copy.
+
+=== Tier 1 — a cold sandbox (ephemeral, no root)
+
+`/tmp` does not survive a snapshot restore. Re-run this, then `./verify.sh`.
+
+[source,bash]
+----
+# Zig 0.15.2 — the CLI is pinned to it (tools/atoma/.zig-version)
+python3 -m venv /tmp/zv15
+/tmp/zv15/bin/pip install ziglang==0.15.2
+export PATH=/tmp/zv15/lib/python3.11/site-packages/ziglang:$PATH
+
+# Agda 2.7.0.1 — pip wheel ships without the primitive library; fetch it
+python3 -m venv /tmp/zv
+/tmp/zv/bin/pip install agda==2.7.0.1 z3-solver pyyaml
+# the wheel has no prim library; an empty libraries file means "no user libraries"
+mkdir -p /tmp/zv/lib/python3.11/site-packages/agda/data/lib
+: > /tmp/zv/lib/python3.11/site-packages/agda/data/lib/libraries
+curl -L https://codeload.github.com/agda/agda/tar.gz/refs/tags/v2.7.0.1 |
+  tar -xz -C /tmp --wildcards '*/src/data/lib/prim/*'
+cp -r /tmp/agda-2.7.0.1/src/data/lib/prim \
+  /tmp/zv/lib/python3.11/site-packages/agda/data/lib/
+
+# run everything
+export PATH=/tmp/zv15/lib/python3.11/site-packages/ziglang:$PATH
+cd examples/atoma/frame-v1
+AGDA=/tmp/zv/bin/agda PYTHON=/tmp/zv/bin/python ./verify.sh
+----
+
+Expected: twelve `ok` lines (G5 prints twice), `atoma 15 tests`, and a receipt
+whose `status` is `INCOMPLETE` and `status_class` is `Warrant`. If `agda` is not
+on `AGDA=`, G11 prints `not-run` — that is a correct outcome, not a failure, and
+the receipt says `"proof":{"status":"not-run"}`.
+
+=== Tier 2 — the estate
+
+A minted repository uses `mise` + `just` instead of venvs:
+
+[source,bash]
+----
+just setup            # installs the toolchain declared in mise.toml, then doctor
+just doctor           # PASS/WARN/FAIL per tool; exits 1 on any FAIL
+just proof-check-all  # idris2, lean4, agda, coq, plus scan-dangerous
+just test             # provision::test
+----
+
+`mise.toml` currently declares `just`, `shellcheck`, `trivy`, `zig`. It does
+**not** declare `agda`, `z3` or `idris2`; A4 is the task that closes that gap so
+a fresh clone can run G7 and G11 without hand-built venvs.
+
+=== Tier 3 — CI
+
+No workflow runs an Atoma gate today. `quality.yml` runs the estate checks;
+`verify.sh` is invoked only by a human. A5 adds
+`.github/workflows/atoma-verify.yml` with pinned Zig, Agda and z3, running
+`verify.sh` plus `just proof-check-agda`, uploading the receipt as an artefact,
+and **failing** if the receipt says `not-run` for a tool the job installed.
+
+=== Degradation matrix
+
+[cols="2,2,3,2", options="header"]
+|===
+| Tool absent | Gate | What the gate does | What the receipt says
+
+| `z3` | G7 | prints `G7 --` and continues | `"smt":{"status":"not-run","vcs":0}`
+| `agda` | G11 | prints `G11 --` and continues | `"proof":{"status":"not-run","srcset":"none"}`
+| `idris2` | F0.1 | does not exist yet (T5) | Face A remains `transcribed`
+| `dkcheck`/`coqchk`/`lean4checker` | K-series | does not exist yet | `status_class` stays `Warrant`
+| `zig` | everything | `verify.sh` dies at the first build | no receipt is written
+|===
+
+The asymmetry is deliberate: a missing solver weakens a *claim*, a missing
+compiler stops *work*. Only the first is allowed to produce a receipt, and only
+with the degradation visible in it.
+
+[[gates]]
+== Gates
+
+A gate is a command with an exit status. Gates G1–G11 exist; G12–G15 are the
+ones this plan adds. F0.1 is the Phase 0 entry gate that has never run.
+
+[cols="1,3,3,2", options="header"]
+|===
+| Gate | Command | Pass means | Added by
+
+| G1 | `zig test src/frame_parse.zig` | 11/11 | exists
+| G2 | `zig build-obj … -target <4 triples>` | all four compile | exists
+| G3 | `./tools/layout.sh` | 60 rows, 0 mismatch | exists
+| G4 | `zig build-obj tools/layout_negative.zig -target wasm32…` | **fails** | exists
+| G5 | `atoma equiv spec/face-a.cspec spec/face-b.cspec` | equal digests; probe diverges | exists
+| G6 | `atoma mutate` sweep | 11/11 distinct | exists
+| G7 | `python3 vc/gen_vcs.py` | 14/14, 6 counterexamples found | exists
+| G8 | `atoma extract … \| hashed` | equals `spec/face-b.cspec` | exists
+| G9 | `atoma check src/frame_parse.zig` | 0 diagnostics, 6 contracts | exists
+| G10 | `atoma check fixtures/violations.zig` | **exits 1**, ≥20 diags, ≥15 codes | exists
+| G11 | `verification/atoma/check-agda.sh` | 4 modules, 0 postulates | exists
+| F0.1 | `idris2 --typecheck abi/FrameAbi.ipkg` + `encode` diff | typechecks; Face A regenerated | T5
+| G12 | `dkcheck <witness>.dk` | accepted | K3
+| G13 | `coqchk` and `lean4checker --fresh` on the `.dk` | accepted, 0 extra axioms | K4
+| G14 | `echidna mutate` over the 11 operators | kill ≥ 95 %, vacuity 100 % | K6
+| G15 | receipt schema validation | `COMPLETE` only with three kernel verdicts | K7
+|===
+
+Gate discipline, learned the expensive way:
+
+* A gate that cannot run prints `not-run` and **never** `ok`.
+* A gate is trusted only after the thing it guards has been broken deliberately
+  and the gate was seen to fail. Each of G4, G5-probe, G10 and G11's grep exists
+  for that reason.
+* G7 and G11 are skip-capable by design; G1–G6, G8–G10 are not. If a machine
+  cannot run a non-skip gate, the correct output is a failure, not a skip.
+
+== Milestones
+
+Six milestones, each with an exit gate. The dependency graph is a spine with
+parallel tracks: A must land before the repo can be read as Atoma; K is the only
+road to `COMPLETE`; T can proceed in parallel with A and K because it needs only
+Agda; S, C and H come after.
+
+....
+A (identity, 2–3 days) ──► K (kernel chain, 3–6 weeks) ──► S (subset)
+   │                              │
+   └────────────► T (theory, ongoing, unblocked) ──► C (cost/secrecy)
+                                  │
+                                  └──► H (hardening, ecosystem)
+....
+
+[[board]]
+[cols="1,2,3,2", options="header"]
+|===
+| Milestone | Goal | Exit gate | Status
+
+| A | The repository *is* Atoma, and the estate gates see its proofs | `check-no-placeholders.sh` exits 0; `just proof-check-agda` includes 4 modules; CI runs `verify.sh` | `todo`
+| K | One VC reaches `COMPLETE (Receipt)` through three kernels, then fourteen | G12, G13, G14, G15 on one VC, then the full set | `blocked` (needs idris2, dkcheck, echidna, coqchk, lean4checker)
+| T | The theorem covers store, loops and postconditions | `agda --safe --without-K` on the extended `Core`/`Soundness`; no postulates | `todo` (unblocked)
+| S | Phase 2: regions, allocators, recursion, borrows beyond the signature | a second worked example verified end to end | `todo`
+| C | Phase 3: MaxPlus bounds, stack HWM, secrecy lattice | a secret-dependent branch rejected; a padding leak rejected even when memory safety passes | `todo`
+| H | Proof Burrower cache, badges, more examples, release | cache hit skips recheck only on TCB match; badge names phase + digest | `todo`
+|===
+
+[[track-a]]
+== Track A — Identity and estate conformance
+
+Cheap, unblocked, and the thing that makes everything else legible. Two of the
+seven need the owner.
+
+[[A1]]
+=== A1 — Mint the repository
+
+*Status:* `blocked` (owner values + `just`) · *Size:* S · *Owner:* human
+
+*Why.* 88 tracked files carry `{{PLACEHOLDER}}` tokens and the estate's own gate
+is red:
+
+[source,bash]
+----
+$ bash scripts/check-no-placeholders.sh; echo $?
+FAIL: 88 file(s) contain unfilled {{PLACEHOLDER}} tokens
+1
+----
+
+*Method.* On a scratch branch, with the values in the environment (the recipe
+prompts unless `RSR_NON_INTERACTIVE` is set):
+
+[source,bash]
+----
+git switch -c chore/mint-atoma
+RSR_NON_INTERACTIVE=1 \
+PROJECT_NAME="Atoma" \
+PROJECT_DESCRIPTION="A verification toolchain for Zig at the Idris2 ABI seam" \
+REPO="atoma" OWNER="hyperpolymath" \
+AUTHOR="Jonathan D.A. Jewell" AUTHOR_EMAIL="j.d.a.jewell@open.ac.uk" \
+PROJECT_TYPE="binary" WEBSITE="https://github.com/hyperpolymath/atoma" \
+OPENSSF_BP_ID="" \
+just repo-init
+bash scripts/check-no-placeholders.sh
+git diff --stat
+----
+
+Then review the diff by hand. The mint rewrites the repo deed's identity block,
+the README, `www/`, `.devcontainer/`, `CITATION.cff` and the root `Justfile`
+variables. Anything it produces that contradicts Atoma's specification
+(§2–§7) is a plan deviation — record it in <<deviations>>.
+
+*Accept.* `bash scripts/check-no-placeholders.sh` exits 0 **and**
+`git grep -c 'rsr-template-repo'` returns nothing in tracked files.
+
+*Falsifier.* The gate passes because a token was deleted rather than filled, and
+a reader still cannot tell what the repo is. Read the rendered `README.adoc` and
+`www/public/index.html`; if they describe a template, A1 is not done.
+
+*Blocked by.* Nothing technical. It is destructive enough to need the owner's
+sign-off, and it must not run on a dirty tree.
+
+[[A2]]
+=== A2 — Set repository identity out of band
+
+*Status:* `blocked` (token lacks permission) · *Size:* XS · *Owner:* human
+
+*Why.* `.github/settings.yml` deliberately forbids `name`, `description`,
+`homepage` and `private` keys — this is the estate's fix for a template that
+once renamed itself on every push. Identity is therefore an operator action, and
+Atoma currently has an empty About box and no topics, so discovery and citation
+are both poorer than they should be.
+
+*Method.* The sandbox's GitHub token is an App installation token with
+contents-write only; `gh repo edit` returns
+`HTTP 403: Resource not accessible by integration`. Run one of:
+
+[source,bash]
+----
+gh repo edit hyperpolymath/atoma \
+  --description "Atoma — a verifier for Zig at the Idris2 ABI seam. Two hash-checked faces of one contract IR, a deliberately small verifiable Zig subset, and a soundness theorem in Agda. Status: Phase 0/1, INCOMPLETE (Warrant)." \
+  --add-topic atoma,zig,idris2,agda,formal-verification,formal-methods,dependent-types,qtt,contracts,ffi,c-abi,smt-lib,z3,dedukti,proof-carrying-code,coq,lean4
+----
+
+or reconnect GitHub in the agent environment with repository-administration
+permission and let the agent run it.
+
+*Accept.* `gh repo view --json description,repositoryTopics` shows the
+description and 17 topics.
+
+*Falsifier.* Topics set but description left as the template's, or a description
+that claims `COMPLETE` — the About box is the most-read claim the project makes;
+it must carry the status.
+
+*Blocked by.* Repository administration permission.
+
+[[A3]]
+=== A3 — Register the metatheory with the estate proof gate
+
+*Status:* `todo` · *Size:* S · *Owner:* agent
+
+*Why.* `just proof-check-all` is the estate's single source of truth for "do the
+proofs compile", and it cannot see Atoma's proof. `verification/proofs/agda/MANIFEST`
+lists exactly one module:
+
+[source]
+----
+verification/proofs/agda|Properties.agda|gated| compiles under `agda --safe`
+----
+
+The four Atoma modules live at `verification/atoma/agda/` and are checked only
+by `check-agda.sh`, which nobody's CI calls. A proof outside the manifest is
+gated by memory.
+
+*Method.* Two changes, both small:
+
+. Add to `verification/proofs/agda/MANIFEST`, using the format's existing
+  arbitrary-source-root support:
++
+[source]
+----
+verification/atoma/agda|Bv.agda|gated| bitvector bridge; Atoma spec §4.5
+verification/atoma/agda|Lin.agda|gated| linear handles; spec §3.6
+verification/atoma/agda|Core.agda|gated| core language + VC generator; spec §6.1–6.2
+verification/atoma/agda|Soundness.agda|gated| the §6.3 theorem
+----
+. Teach `scripts/check-proofs.sh` per-entry flags, because the estate invokes
+  `agda --safe` and Atoma additionally requires `--without-K`. Extend the
+  manifest line with an optional fifth field (`flags=--without-K`) and pass it
+  through; default stays as today.
+
+*Accept.* `just proof-check-agda` (or `bash scripts/check-proofs.sh agda`)
+checks five modules including all four Atoma ones, and
+`bash scripts/scan-dangerous.sh` exits 0 on the new files.
+
+*Falsifier.* Add `postulate`-like cheating to a copy of `Soundness.agda` and
+confirm **both** `check-proofs.sh` and `check-agda.sh` reject it. If only one
+does, the two checkers disagree and the weaker one is decorative.
+
+*Note.* Moving the files under `verification/proofs/agda/atoma/` is the
+alternative. It is more churn (six documented paths and the spec's repository
+map) for no additional guarantee, and the proof `srcset` digest would not change
+because it hashes contents, not paths. Prefer the manifest entry.
+
+[[A4]]
+=== A4 — Declare the Atoma toolchain in the provisioning contract
+
+*Status:* `todo` · *Size:* S · *Owner:* agent
+
+*Why.* `mise.toml` declares `just`, `shellcheck`, `trivy`, `zig` and nothing
+else. A fresh clone therefore cannot run G7 or G11 without hand-built venvs, and
+`just doctor` reports a healthy environment that cannot verify anything.
+
+*Method.* Declare `agda` and `z3` in `mise.toml`: as mise tools if the registry
+carries them, otherwise as a pinned download with a recorded checksum. The
+venue matters less than the pin — `just doctor` must be able to answer PASS or
+FAIL for each, and `mise.lock` must make the answer the same on every machine.
+Add `[env]` entries for `AGDA` (and `PYTHON`, until A6 removes it) so
+`verify.sh` finds them without a hand-built venv, then `just toolchain-refresh`
+to re-lock.
+
+*Accept.* On a clean container, `just setup && just doctor` passes and
+`./verify.sh` reports G7 `ok` and G11 `ok` without any manual `export`.
+
+*Falsifier.* The tools appear in `mise.toml` but a fresh `mise install` still
+leaves `verify.sh` printing `not-run` for G7/G11 — the declaration is decorative.
+
+[[A5]]
+=== A5 — Put the gates in CI
+
+*Status:* `todo` · *Size:* M · *Owner:* agent
+
+*Why.* Every gate in this repo runs because a human typed `./verify.sh`. The
+estate's own history is explicit that path-filtered, skip-happy CI is how
+non-compiling proofs survive for months.
+
+*Method.* Add `.github/workflows/atoma-verify.yml`:
+
+[source,yaml]
+----
+# sketch — the pinning and checksum conventions come from actions.lock
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@<pinned>
+      - run: just setup            # or mise install with a pinned lockfile
+      - run: just doctor
+      - run: cd examples/atoma/frame-v1 && ./verify.sh
+      - run: just proof-check-agda
+      - uses: actions/upload-artifact@<pinned>
+        with: { name: phase0-receipt, path: examples/atoma/frame-v1/witness/ }
+      - name: no silent not-run
+        run: |
+          jq -e '.smt.status == "discharged" and .proof.status == "checked"' \
+            examples/atoma/frame-v1/witness/phase0.receipt.json
+----
+
+The last step is the point of the job: in CI the tools *are* installed, so a
+`not-run` is a failure rather than a degradation.
+
+*Accept.* A pull request that breaks G8 (edit `spec/face-b.cspec` by one
+character) goes red; a pull request that touches nothing stays green; the
+receipt is downloadable from the run.
+
+*Falsifier.* The job passes with `jq` removed, or with `verify.sh` stubbed to
+`exit 0`. Both must be tried once, deliberately.
+
+[[A6]]
+=== A6 — Retire Python from the gate path
+
+*Status:* `todo` · *Size:* M · *Owner:* agent
+
+*Why.* `mise.toml` states the estate policy — "no python, node/npm/yarn, make or
+nix here" — and `vc/gen_vcs.py` is the only thing standing between the repository
+and a self-contained `verify.sh`. It is also the VC generator, i.e. exactly the
+component the specification says must eventually live in Ada/SPARK or
+Creusot-verified Rust, not in a scripting language.
+
+*Method.* Two steps, in this order:
+
+. Port the 14 obligations to `atoma vc <cspec> > <vc.smt2>` in Zig, reusing the
+  canonicaliser's parser. The generator is untrusted plumbing (§1 of the spec),
+  so Zig is acceptable for now; the trusted path is T6.
+. Delete `vc/gen_vcs.py` and make G7 call the Zig binary. Keep the Python file in
+  git history as the independently-written reference the Zig version is diffed
+  against (differential test: same `.smt2` bytes for all 14).
+
+*Accept.* `./verify.sh` runs G7 with `PYTHON` unset and the 14 `.smt2` files are
+byte-identical to today's (digest `blake3:72c74c01…5e3698`).
+
+*Falsifier.* The Zig generator reproduces the files because it embeds their text.
+The differential test must generate from the `.cspec` alone, and a spec mutation
+must change the output.
+
+*Note.* If the port is judged too costly now, the alternative is an explicit,
+recorded waiver in the deed naming `vc/gen_vcs.py` as an exception with a
+sunset date. Silent tolerance is not an option; I11 is "no new Python in the gate
+path", not "pretend the old Python is Zig".
+
+[[A7]]
+=== A7 — Reconcile the estate status records with the claims ledger
+
+*Status:* `todo` · *Size:* S · *Owner:* agent
+
+*Why.* `docs/status/PROOF-STATUS.adoc` still reads 0 % proven, with the
+template's category counts, while `docs/spec/ATOMA-SPEC.adoc` §1 records fourteen
+checked claims. Two status documents that disagree are worse than one that is
+incomplete: a reader picks whichever is convenient.
+
+*Method.* Make the specification's claims ledger the single source of truth and
+turn `PROOF-STATUS.adoc` into a projection of it: one row per ledger row, the
+same five status values, a pointer to the gate. Add a checker
+(`scripts/check-claim-sync.sh`) that fails when a ledger row has no status row or
+the two disagree on `checked`/`not checked`.
+
+*Accept.* `bash scripts/check-claim-sync.sh` exits 0 and the row counts agree
+(14 checked, 5 not checked at revision 1).
+
+*Falsifier.* Flip one ledger row to `checked` without touching PROOF-STATUS and
+confirm the checker fails. If it passes, it is comparing prose, not claims.
+
+*Blocked by.* None, but it is best done after A1 so the mint does not overwrite
+`PROOF-STATUS.adoc`.
+
+[[track-k]]
+== Track K — The kernel chain
+
+This is the only track that can move the status from `Warrant` to `Receipt`, and
+it needs software that is not installed here. Read it as a dependency-ordered
+queue: each task ends in an artefact the next one consumes.
+
+[[K1]]
+=== K1 — Spike: measure ECHIDNA's export surface
+
+*Status:* `blocked` (needs `echidna`) · *Size:* S · *Owner:* agent, time-boxed 1 day
+
+*Why.* The specification's claim is that Atoma *reuses* ECHIDNA rather than
+building its own runner. That claim is only meaningful if ECHIDNA can hand back
+an Alethe proof for a QF_BV/QF_ABV query and turn it into Dedukti. Nobody has
+measured that on this repository's obligations.
+
+*Method.* Install ECHIDNA, dispatch one obligation (`V1_no_underflow`) through
+it, and write `docs/integration/ECHIDNA.adoc` recording: the exact invocation,
+the Alethe artefact's digest, whether Dedukti export exists and in what form, and
+what the exchange format requires of the input. Time-box: if the surface is not
+usable in a day, stop and write down why — that is a finding, not a failure.
+
+*Accept.* A document exists containing one copy-pasteable command that produces
+an Alethe file for `V1_no_underflow`, with its digest.
+
+*Falsifier.* The recorded command requires patching ECHIDNA. If it does, the
+dependency is not one-way and I5 is at risk; record it as a finding for the owner.
+
+[[K2]]
+=== K2 — Design the `.dk` encoding of an obligation
+
+*Status:* `blocked` (needs K1) · *Size:* M · *Owner:* agent
+
+*Why.* A `.dk` file that typechecks but does not mean the obligation is worse
+than none. The encoding must be written down before anything is generated.
+
+*Method.* In `docs/spec/DK-ENCODING.adoc`, specify how `mkObl pre goal` becomes
+Dedukti: the sort of `Nat`/`BV` (follow `Bv.agda`'s `Fin 2^w` bridge), the
+encoding of `≤`, `=`, `and`, `neg`, and the theorem statement shape. State
+explicitly what a `.dk` acceptance *does not* prove (it proves the encoding of
+the formula, not the formula's relevance to Zig).
+
+*Accept.* The document contains the full `.dk` text for `V1_no_underflow`,
+hand-written and small enough to read.
+
+*Falsifier.* The `.dk` statement and the `.smt2` statement disagree on a
+quantifier or a bound when both are read literally. Have a second person compare
+them.
+
+[[K3]]
+=== K3 — G12: `dkcheck` on one witness
+
+*Status:* `blocked` (needs K2, `dkcheck`) · *Size:* M · *Owner:* agent
+
+*Method.* Emit the hand-written witness from K2, run `dkcheck`, and add the gate
+to `verify.sh` with the same skip-to-`not-run` discipline as G7/G11.
+
+*Accept.* `dkcheck` exits 0; receipt gains
+`"witnesses":[{"vc":"V1_no_underflow","dk":"blake3:…","dkcheck":"ok"}]`; the
+status still says `INCOMPLETE`.
+
+*Falsifier.* Change one numeral in the `.dk` and confirm `dkcheck` rejects it.
+
+[[K4]]
+=== K4 — G13: two more kernels
+
+*Status:* `blocked` (needs K3, `coqchk`, `lean4checker`) · *Size:* L · *Owner:* agent
+
+*Why.* I4 is the hard rule: one kernel is a typechecker's opinion, three are a
+receipt. Coq and Lean must each accept the *same* `.dk`, with zero extra axioms.
+
+*Method.* Use Dedukti's backends (or ECHIDNA's export path, if K1 found one) to
+produce Coq and Lean sources from the `.dk`; `coqchk` the compiled `.vo` with a
+printed axiom list, and `lean4checker --fresh` the Lean artefacts. Record tool
+versions in the receipt — a receipt is only as good as the kernels behind it.
+
+*Accept.* For `V1_no_underflow`: `coqchk` prints zero non-standard axioms and
+`lean4checker --fresh` accepts; the `.dk` digest is identical in all three
+records.
+
+*Falsifier.* Introduce an axiom (`Axiom cheat : False.`) anywhere in the Coq
+path and confirm the gate fails. A gate that only checks "compiles" would pass;
+this one must check "compiles with zero extra axioms".
+
+[[K5]]
+=== K5 — Batch the remaining 13 obligations
+
+*Status:* `blocked` (needs K4) · *Size:* M · *Owner:* agent
+
+*Method.* Loop K3–K4 over all 14. Expected shape: 8 UNSAT (proofs to export) and
+6 SAT (counterexamples, which are *not* witnesses — they become regression
+fixtures, and their models are asserted in the receipt).
+
+*Accept.* All 8 valid obligations have three kernel verdicts; all 6 refuted ones
+have a recorded model; `vcset` digest unchanged.
+
+*Falsifier.* A SAT query is silently skipped because "there is no proof to
+export". The count of witnesses plus counterexamples must equal 14.
+
+[[K6]]
+=== K6 — G14: the mutation kill score
+
+*Status:* `blocked` (needs K5) · *Size:* L · *Owner:* agent
+
+*Why.* Distinct artefacts (G6) prove the mutants differ. Kill score proves the
+*verifier* notices. This is the number the specification puts at ≥ 95 %.
+
+*Method.* `echidna mutate` each of the 11 operators against the verified
+contract, run the full VC pipeline on each mutant, and record a kill matrix
+(mutant × outcome). Non-equivalent mutants must be killed ≥ 95 %; vacuous ones
+100 %.
+
+*Accept.* A table in `witness/mutation-matrix.tsv` and a score in the receipt:
+`"mutants":{"applied":11,"distinct":11,"killed":n,"score":x}`.
+
+*Falsifier.* A mutant survives that changes an `ensures` the tests also cover —
+that means the VC generator is not reading the clause. Investigate before
+adjusting the score.
+
+[[K7]]
+=== K7 — G15: receipt schema v2 and the promotion rule
+
+*Status:* `blocked` (needs K5) · *Size:* S · *Owner:* agent
+
+*Method.* Extend the receipt to `atoma.receipt.v2` with `witnesses`, `kernels`,
+`tcb` and the mutation score; write the promotion rule as code, not prose:
+`COMPLETE` iff every witness has `dkcheck: ok`, `coqchk: ok (axioms 0)` and
+`lean4checker: ok`, and all three name the same `.dk` digest.
+
+*Accept.* A unit test in `tools/atoma` that promotes a synthetic receipt only
+with three matching verdicts and refuses one with two.
+
+*Falsifier.* Delete one kernel record from the synthetic receipt; the schema test
+must refuse `COMPLETE`.
+
+[[K8]]
+=== K8 — Proof Burrower cache
+
+*Status:* `blocked` (needs K7) · *Size:* M · *Owner:* agent
+
+*Method.* Key `BLAKE3(.dk)` under `atoma.dk.v1`; value the kernel verdicts plus
+the TCB identity (tool names, versions, hashes). A cache hit may skip rechecking
+only when the recorded TCB matches the current one.
+
+*Accept.* Two consecutive CI runs: the second reports `cache-hit` and skips the
+kernels; changing the Coq version forces a miss and a recheck.
+
+*Falsifier.* A hit with a *different* `.dk` digest. That is the only failure that
+matters, and it must be tested with a doctored cache entry.
+
+[[K9]]
+=== K9 — Badges
+
+*Status:* `blocked` (needs K7) · *Size:* S · *Owner:* agent
+
+*Method.* `atoma badge --receipt witness/phase0.receipt.json` prints a shields.io
+endpoint payload naming phase, class and contract digest — never the word
+"verified". `echidnabot` publishes it on the `governance-badges` branch, where
+`settings.yml`'s existing endpoint badges already read from.
+
+*Accept.* Badge JSON contains `"message":"phase0 · warrant · f5f97a7b"` and
+nothing stronger.
+
+*Falsifier.* A receipt without kernel verdicts produces a `receipt` badge.
+
+[[track-t]]
+== Track T — Theory completion
+
+Unblocked in this environment and the highest-value work available to an agent
+without ECHIDNA. Each task ends in Agda that checks under `--safe --without-K`,
+and each keeps the invariant that a theorem's type states its fragment.
+
+[[T1]]
+=== T1 — The store, and the framing lemma
+
+*Status:* `todo` · *Size:* L · *Owner:* agent
+
+*Why.* `Core.agda` is store-free because a store makes `soundness` unprovable
+without a framing lemma. Stating it, rather than dodging it, is the next step;
+`exec-id` then becomes a special case instead of the whole story.
+
+*Method.* Add `assign : Nat → Tm → Stmt` and a store `σ : Nat → Nat`.
+Define `writes : Stmt → List Nat` and `reads : Fm → List Nat`, prove
+`frame : disjoint (writes s) (reads pc) → ⟦ pc ⟧f σ → ⟦ pc ⟧f (exec s σ)`,
+and re-prove `soundness` for the extended fragment. Keep `exec-id` as a
+corollary of `frame` when the statement writes nothing.
+
+*Accept.* `Soundness.agda` checks; the theorem type now quantifies over the store
+and carries the disjointness premise; the old store-free theorem remains as a
+corollary so nothing that depended on it breaks.
+
+*Falsifier.* Prove `frame` by restricting `writes` to constants, or by making
+`reads` empty. If the lemma holds for a statement that writes a variable the
+path condition mentions, the model is wrong — test with `assert (x ≤ 5) ; x := 9`.
+
+[[T2]]
+=== T2 — Loops
+
+*Status:* `todo` · *Size:* L · *Owner:* agent
+
+*Why.* `while e inv I dec V do s` is the construct that makes `MAX_ITERS` and
+MaxPlus meaningful, and it is the one the specification promises in §3.6.
+
+*Method.* Add the statement, the three VCs (establishment, preservation, exit),
+and termination via an explicit fuel argument — `--safe` rejects well-founded
+recursion, so the fuel is a parameter, not a hack. Prove: if the invariant holds
+and the variant strictly decreases on every iteration, then `run n s` is safe for
+`n` iterations and the postcondition holds on exit.
+
+*Accept.* The extension checks; a worked loop (`while (i < len)` over the frame
+payload) is proved with its invariant; the fuel theorem is stated with its bound.
+
+*Falsifier.* An invariant that is preserved but not strong enough to imply the
+exit condition. The theorem must fail for that invariant — check by weakening it
+deliberately.
+
+[[T3]]
+=== T3 — Postconditions and error paths
+
+*Status:* `todo` · *Size:* M · *Owner:* agent
+
+*Method.* Model outcomes (`ret ok`, `err c`) and prove the two clauses of
+`soundness-full` (2) and (3) for the extended fragment: `pre ∧ res = ok ⟹ φ`
+and `pre ∧ res ≠ ok ⟹ ψ`.
+
+*Accept.* `soundness-full`'s (1)–(3) are proved; (4) and (5) remain cited from
+`Lin`/`T4`.
+
+*Falsifier.* A postcondition that holds only because `err` is unreachable in the
+model. Make an error path reachable and confirm the clause becomes non-trivial.
+
+[[T4]]
+=== T4 — Lift linearity over the statement structure
+
+*Status:* `todo` · *Size:* M · *Owner:* agent
+
+*Why.* `Lin.agda` proves `exactly-once` for a modelled scope; `soundness-full`
+needs it for *the* statement language, which currently has no `acquire`/`release`.
+
+*Method.* Add the two statements, give `St` a place in the configuration, and
+prove `consumed-exactly-once s σ` by structural induction, reusing
+`Lin.exactly-once` at the `defer`/`errdefer` boundary.
+
+*Accept.* Clause (4) of `soundness-full` is proved for the extended fragment.
+
+*Falsifier.* The proof accepts a program with two `release`s on one path. Try
+`acquire ; release ; release` and confirm it is rejected by the theorem's
+premise, not by a side condition nobody checks.
+
+[[T5]]
+=== T5 — F0.1: typecheck the Idris2 contract and regenerate Face A
+
+*Status:* `blocked` (needs `idris2`) · *Size:* M · *Owner:* agent
+
+*Why.* The claims ledger is explicit that `spec/face-a.cspec` is a hand
+transcription and the Idris2 module has never been compiled. Until F0.1 runs,
+"Face A is the specification" is an aspiration with a hash.
+
+*Method.* Install Idris2 (`pack` per `mise.toml`'s note, or the release tarball),
+`idris2 --typecheck abi/FrameAbi.ipkg`, then `idris2 --exec extract` (or
+`putStrLn (encode frameParse)`) and diff against `spec/face-a.cspec`. Replace the
+file with the real output if they differ; the seam hash will move and G5 will
+confirm both faces still meet.
+
+*Accept.* `idris2 --typecheck` exits 0 with no `Error:` line (the estate's
+`check-proofs.sh` requires both, because `idris2 --check` exits 0 on a missing
+import); `spec/face-a.cspec` is generator output and carries a do-not-hand-edit
+header like Face B.
+
+*Falsifier.* The diff is empty *because* the extractor has no `encode` and prints
+nothing. Assert the output is non-empty and contains `cspec 1`.
+
+[[T6]]
+=== T6 — The trusted VC generator (Ada/SPARK or Creusot)
+
+*Status:* `todo` · *Size:* XL · *Owner:* human decision, then agent
+
+*Why.* I2 requires proof-carrying VC generation. A6 moves the generator to Zig,
+which is an improvement in policy terms but still untrusted. The end state is a
+generator whose obligation-emitting function is proved, with the CLI shell
+strictly outside it.
+
+*Method.* Decision first, recorded as an ADR: SPARK (existing toolchain in the
+estate, contracts in Ada) versus Rust + Creusot (matches the Rust tooling the
+estate already ships). Then port the pure function `cspec → obligation list`, and
+prove: every emitted obligation's `pre`/`goal` is a formula of the fragment, and
+the emitted set is a superset of the hazards `T1`'s `vc` computes.
+
+*Accept.* The pure core has a machine-checked contract; a differential test
+against the Zig implementation on the 14 obligations and 11 mutants matches.
+
+*Falsifier.* The verified core is a wrapper around an unverified one. Check that
+the proven function is the one the binary calls.
+
+[[T7]]
+=== T7 — Write the refinement statement
+
+*Status:* `todo` · *Size:* M · *Owner:* agent
+
+*Why.* §6.4's non-claim is honest but un-actionable: nobody can say what closing
+it would take. Stating the simulation makes it a task instead of a shrug.
+
+*Method.* `docs/theory/atoma/REFINEMENT.adoc`: the relation between `Stmt` and
+the subset's operational semantics, which Zig lowerings are assumed to be
+meaning-preserving, and the smallest set of lemmas a future mechanisation needs.
+Do not prove it; specify it.
+
+*Accept.* A reader can name the three assumptions the pipeline rests on and point
+at the line of the document that states each.
+
+*Falsifier.* The document proves the easy direction and leaves the hard one as
+"future work" — that is the current state, restated.
+
+[[track-s]]
+== Track S — Subset growth (Phase 2)
+
+Phase 2 in the specification: regions, allocators as capabilities, bounded
+recursion, `Echo` types, borrows beyond the signature.
+
+[[S1]]
+=== S1 — Region inference for `assigns`
+
+*Status:* `todo` · *Size:* L · *Owner:* agent
+
+*Method.* Compute the `assigns` set from the Zig body (writes reachable from
+`export fn`) and reject a declared `assigns` that is a strict subset. This turns
+`assigns` from a promise into a checked claim.
+
+*Accept.* A fixture that writes a region it did not declare fails `atoma check`
+with a new `E-ASSIGNS-UNDER` code; the 6 example exports still pass.
+
+*Falsifier.* The analysis is syntactic and misses a write through a pointer
+parameter. Include such a fixture in the negative corpus.
+
+[[S2]]
+=== S2 — Allocator capabilities (MPR)
+
+*Status:* `todo` · *Size:* L · *Owner:* agent
+
+*Method.* Thread an `Allocator` value parameter through the contract as a
+capability region; reject `std.heap.page_allocator` or any ambient allocator in
+an export (`E-ALLOC-AMBIENT` already exists — make it a hard error with a
+witness rather than a heuristic).
+
+*Accept.* A second worked example allocates through a caller-provided allocator
+and is verified end to end.
+
+*Falsifier.* The allocator is passed but unused, so the fixture proves nothing;
+assert the allocation is observable in the IR.
+
+[[S3]]
+=== S3 — Bounded recursion with `@decreases`
+
+*Status:* `todo` · *Size:* M · *Owner:* agent
+
+*Method.* Extend the subset to allow recursion whose measure is structurally
+smaller; emit `vc-term` obligations; reject unbounded recursion by construction
+(the parser sees no measure, the checker emits `E-LOOP-UNBOUNDED`).
+
+*Accept.* A recursive parser over the frame body is verified, with the measure
+discharged by the solver.
+
+*Falsifier.* A recursion whose measure is not well-founded but which the checker
+accepts because the measure is syntactically decreasing.
+
+[[S4]]
+=== S4 — Borrow checking beyond the signature
+
+*Status:* `todo` · *Size:* XL · *Owner:* agent
+
+*Method.* `ephapax`-style L1/L2 discipline over locals, not just parameters:
+reject a second mutable borrow while one is live, and a read while mutated.
+
+*Accept.* A fixture with a double mutable borrow is rejected; the example
+implementation is unchanged.
+
+*Falsifier.* The check passes because it only considers explicit `&mut`, not
+pointer-derived aliases. Add a fixture that aliases through `@ptrCast` (already
+banned) and confirm the ban fires first.
+
+[[S5]]
+=== S5 — `Echo` types on lossy conversions
+
+*Status:* `todo` · *Size:* M · *Owner:* agent
+
+*Method.* Mark `@truncate`, error-code collapse and dropped values as `Echo`
+events in the IR; a lossy conversion without a witness is a diagnostic.
+
+*Accept.* `V3_intcast_range`'s cast carries an `Echo` witness; a fixture that
+truncates silently is rejected.
+
+*Falsifier.* `Echo` annotations become prose that nothing reads.
+
+[[S6]]
+=== S6 — ZIR fingerprints as cache keys
+
+*Status:* `todo` · *Size:* S · *Owner:* agent
+
+*Method.* `atoma fingerprint <file>` emits the ZIR instruction-tag digest
+(measured: 23 instructions for a 4-line function). Use it in the Proof Burrower
+key so a structural change behind an unchanged text invalidates the cache.
+
+*Accept.* Two files with identical text but different `comptime` expansion have
+different fingerprints.
+
+*Falsifier.* The fingerprint changes on every compiler patch release, making the
+cache useless; pin and record the compiler identity in the key.
+
+[[track-c]]
+== Track C — Cost, stack, secrecy (Phase 3)
+
+[[C1]]
+=== C1 — MaxPlus bounds as VCs
+
+*Status:* `todo` · *Size:* M · *Owner:* agent
+
+*Method.* Generalise `V4_maxplus_bound`: `bound steps <tm>` becomes a MaxPlus
+expression over the contract, with `max`/`+` composition, and a VC per loop.
+
+*Accept.* The worked example's `MkBounds` is proved from the loop structure
+rather than asserted; a wrong bound produces a counterexample.
+
+*Falsifier.* The bound is proved for the model but the generated code has an
+extra pass; count basic blocks in the compiled object and compare.
+
+[[C2]]
+=== C2 — Stack high-water mark (`occupancy-types`)
+
+*Status:* `todo` · *Size:* M · *Owner:* agent
+
+*Method.* A stack model with an occupancy HWM; `bound hwm <n>` becomes a proved
+claim about the deepest frame reachable from each export.
+
+*Accept.* `hwm` is proved; a fixture that recurses without a bound is rejected.
+
+*Falsifier.* The model ignores `@frameSize`-style compiler padding and reports a
+HWM that the binary exceeds.
+
+[[C3]]
+=== C3 — Secrecy lattice (`secret-types`)
+
+*Status:* `todo` · *Size:* L · *Owner:* agent
+
+*Method.* Label sorts with a lattice; noninterference VC between public and
+secret parameters; a secret-dependent branch is a violation.
+
+*Accept.* A fixture that branches on a secret key length is rejected.
+
+*Falsifier.* The analysis only looks at branches and misses secret-dependent
+memory access (cache timing). Say so in the non-claims.
+
+[[C4]]
+=== C4 — Padding secrecy
+
+*Status:* `todo` · *Size:* S · *Owner:* agent
+
+*Why.* `V6_padding_zeroed` is currently a memory-hygiene VC. If a padding byte
+still holds secret data, the same VC is a *secrecy* VC and `zeroBytes` is the
+fix — the specification says this; the plan makes it a gate.
+
+*Accept.* A fixture that leaves secret bytes in padding passes memory safety and
+fails secrecy.
+
+*Falsifier.* The two analyses share a premise, so the secrecy check can never
+fire independently.
+
+[[C5]]
+=== C5 — Constant-time bounds for secret paths
+
+*Status:* `todo` · *Size:* L · *Owner:* agent
+
+*Method.* Data-dependent branches and table lookups on secret data become
+violations; prove the comparison paths constant-time.
+
+*Accept.* A fixture with an early-exit comparison on secret bytes is rejected.
+
+*Falsifier.* A claim about `-O ReleaseFast` output that nobody checked against
+the generated machine code. State the non-claim or check the object.
+
+[[track-h]]
+== Track H — Hardening and ecosystem
+
+[[H1]]
+=== H1 — Two more worked examples
+
+*Status:* `todo` · *Size:* L · *Owner:* agent
+
+*Why.* One example proves the pipeline exists. Three prove it generalises: a
+handle lifecycle (multiple regions, `defer`/`errdefer`), a wire codec (unions
+and endianness), and a callback/iterator (function pointers and reentrancy —
+likely *banned*, which is itself a useful finding).
+
+*Accept.* Each example has its own `.cspec` pair, VCs, receipt, and a README
+that states what it does not prove.
+
+*Falsifier.* The second example needs a feature the subset does not have, and the
+feature is added silently rather than as a specification change.
+
+[[H2]]
+=== H2 — Widen the negative corpus
+
+*Status:* `todo` · *Size:* S · *Owner:* agent
+
+*Method.* Grow `fixtures/violations.zig` from 20 diagnostics / 17 codes to one
+fixture per diagnostic code (21), plus one per banned construct in spec §3.
+
+*Accept.* G10 asserts 21/21 coverage, and every new code has a fixture that
+fails for the intended reason (not an incidental parse error).
+
+*Falsifier.* A fixture produces the right code by accident. `atoma check` prints
+a detail string; assert the detail, not just the code.
+
+[[H3]]
+=== H3 — Differential canonicaliser corpus
+
+*Status:* `todo` · *Size:* M · *Owner:* agent
+
+*Why.* `encode` in Idris2 and `canon.zig` are meant to agree; the ledger says the
+agreement is asserted. A golden corpus makes it a test.
+
+*Method.* A corpus of `.cspec` inputs with expected canonical bytes; both
+implementations run over it; the Idris2 side is F0.1's extractor.
+
+*Accept.* The corpus runs in CI on both implementations; a divergence names the
+input and both outputs.
+
+*Falsifier.* The corpus only contains inputs both implementations already handle;
+add adversarial inputs (unicode, comments, nesting, empty sets, duplicate
+positional lines).
+
+[[H4]]
+=== H4 — Reproducible receipts
+
+*Status:* `todo` · *Size:* S · *Owner:* agent
+
+*Method.* Two clean runs of `verify.sh` produce byte-identical receipts. Fix any
+nondeterminism (timestamps, map iteration order, locale).
+
+*Accept.* `sha256sum` of two receipts matches; CI asserts it.
+
+*Falsifier.* Determinism achieved by removing a field that varied *because it was
+information* (a real tool version). Record versions; do not drop them.
+
+[[H5]]
+=== H5 — Documentation surfaces that a newcomer hits first
+
+*Status:* `todo` · *Size:* S · *Owner:* agent
+
+*Method.* Root `README.adoc` gets a real Atoma landing section (what it is, what
+it proves today, how to run the gate, where the plan lives). `docs/README.adoc`
+gains the `plan/` row. `docs/spec/README.adoc` links the ultraplan.
+
+*Accept.* A reader who lands on the README can reach `verify.sh` output and the
+claims ledger in two clicks, and sees the current status without asking.
+
+*Falsifier.* The README describes the intended system in the present tense. Every
+sentence about verification must name a gate or say `not yet`.
+
+[[H6]]
+=== H6 — Release 0.2.0
+
+*Status:* `todo` · *Size:* S · *Owner:* human
+
+*Method.* Tag `v0.2.0` when A and K are done (or `v0.1.1` for A alone); update
+`CHANGELOG.adoc`, `CITATION.cff`'s version and date, and the deed's `(meta
+:version …)` in one commit.
+
+*Accept.* Tag, changelog, citation and deed agree; the release notes state the
+highest status reached with its digest.
+
+*Falsifier.* The release notes say "verified". They must name a phase and a
+class.
+
+== Scheduling
+
+The order is a function of what is blocked. Today, in this sandbox, T is the only
+track with no external dependency; A's technical tasks are unblocked but the
+minting one needs the owner; K is entirely blocked on binaries.
+
+=== If you have one hour
+
+Run the gates, confirm the baseline, and claim one card:
+
+[source,bash]
+----
+export PATH=/tmp/zv15/lib/python3.11/site-packages/ziglang:$PATH
+cd examples/atoma/frame-v1
+AGDA=/tmp/zv/bin/agda PYTHON=/tmp/zv/bin/python ./verify.sh
+cat witness/phase0.receipt.json
+----
+
+Then pick A3 (register the proofs) or T1 (the store) — both are self-contained.
+
+=== If you have one day
+
+A3, A7 and the first half of T1. That combination makes the proofs visible to
+the estate's own gate and starts the only theoretical work that is not blocked.
+
+=== If you have one week
+
+A3–A7 and T1–T2, with A1/A2 handed to the owner. Expected state: the repository
+is minted, CI runs the gates, `just proof-check-agda` covers five modules, and
+`Soundness.agda` quantifies over a store with a proved framing lemma.
+
+=== Waves and the critical path
+
+[cols="1,3,2", options="header"]
+|===
+| Wave | Tasks | Gate at the end
+
+| 0 (now) | T1, A3, A7, H5 | G11 extended; ledger and status agree
+| 1 | T2, T3, T4, A4, A5, A6 | theory covers store + loops; CI runs `verify.sh`
+| 2 | A1, A2 (owner), K1, K2 | repo is Atoma; `.dk` encoding written
+| 3 | K3, K4, K5, T5 | one witness, three kernels; Face A regenerated
+| 4 | K6, K7, K8, K9 | kill score; receipt v2; cache; badges
+| 5 | H1, H2, H4 | a second and third example; 21/21 corpus
+| 6 | S*, then C*, then H3, H6 | Phase 2 and 3 exit criteria
+|===
+
+Critical path to `COMPLETE (Receipt)`: K1 → K2 → K3 → K4 → K5 → K7. Everything
+else can slip without moving that date; that is the property the track split
+buys.
+
+== Blocked work and what unblocks it
+
+[cols="2,2,2,3", options="header"]
+|===
+| Task | Blocked by | Who provides it | Workaround (and why not)
+
+| K1–K9 | `echidna`, `dkcheck`, Dedukti's Coq/Lean backends, `coqchk`, `lean4checker` | owner / estate | None. Hand-writing a `.dk` and calling it a witness is the failure mode I4 exists to prevent.
+| T5 | `idris2` (pack or release tarball) | agent | None. A stubbed extractor would make Face A agree by construction.
+| A1 | owner's identity values + `just` | owner | The agent can prepare the branch and the env file, not run the mint.
+| A2 | GitHub token with repository administration | owner | Documented `gh` command is in A2.
+| K6 | ECHIDNA's mutation runner | owner | The artefact-level sweep (G6) is *not* a substitute; do not report it as one.
+| S4, C1–C5 | Phase 1 exit (K7) | — | Building Phase 2 on an unverified Phase 1 multiplies unverified surface.
+|===
+
+== Traps already paid for
+
+Recorded so the next agent does not pay again. Each line is a measured failure,
+not a warning from a manual.
+
+[cols="2,1,4", options="header"]
+|===
+| Trap | Where | What actually happens
+
+| `callconv(.C)` | Zig 0.15.2/0.16/0.17 | Rejected on all three. Use `.c`.
+| `std.process.argsAlloc` | Zig ≥ 0.16 | Removed. The CLI is pinned to 0.15.2 for this one line.
+| `ArrayList(T).init` | Zig ≥ 0.15 | Removed; use `.empty` / `ArrayListUnmanaged` with an explicit allocator.
+| `Ast.parse` signature | Zig 0.17 | Gained `ParseOptions`; a one-line shim per release.
+| Token slices | `frontend.zig` | Slices alias the parse buffer and dangle after `deinit`. This segfaulted `atoma check`. `Diag` must own its strings.
+| `align` | Zig | Reserved word. Name the field `alignment`.
+| `zig build-obj` + `@compileLog` | G2/G4 | Prints the log and exits 1, so "fails to compile" is not a pass/fail signal by itself; assert the error text.
+| `wasm32-freestanding` + std runtime | G2 | Cannot typecheck std runtime imports; keep the verified file free of them.
+| CRC-32 | `frame_parse.zig` | Double-complement bug cost four tests. The final `~` applies to the reflected accumulator, once.
+| Padding holes | layout witness | Interior padding exists; a pad range list that only covers the tail is wrong.
+| `_∸_`, `_++_`, `&&`, `not`, `¬` | Agda builtins | Not exported by `Agda.Builtin.*`. Define locally; do not import `Data.Nat`.
+| `ite` in `Core.agda` | Agda | Collides with the `Stmt` constructor; the helper is `ifB`.
+| `--safe` vs well-founded recursion | Agda | Rejected. Use an explicit fuel argument.
+| `with` vs `with … in eq` | Agda | A plain `with` abstracts the scrutinee away; the `ite` case needs the equation. Cost: one compile cycle.
+| Store in `soundness` | `Core.agda` | Unprovable without a framing lemma. The fragment is store-free for that reason (T1 removes the restriction properly).
+| BV vs integer | SMT | `x - 12 ≤ 2^32-1` is false for `x < 12` in BV64. Carry the no-underflow premise; the toy bug is an asserted wrong constant with goal `False`.
+| z3 Python API | `vc/gen_vcs.py` | `CheckSatResult` is unhashable; compare with `==`.
+| SMT-LIB | `vc/*.smt2` | ASCII only; strip `—`, `→`, `∧`.
+| Mutation coverage | `canon.zig` | Operators need distinct formula/set lines; 8/11 became 11/11 only after adding two `borrow` rows and a second `requires`.
+| Extract vs hand-written Face B | `spec/` | They drifted (extra `requires`, unbound `forall`). Regenerate; never hand-patch.
+| `{{PLACEHOLDER}}` gate | estate | 88 files fail it today; the gate is right, the repo is unminted.
+| Identity in `settings.yml` | probot | Never add `name`/`description`/`private`: an earlier template renamed itself to `-REPO-` on every push.
+| Repo map | `scripts/gen-repo-map.sh` | Generated; CI fails when stale. Regenerate after adding a top-level directory.
+| `idris2 --check` | estate | Exits 0 on a missing import. Require exit 0 **and** no `Error:` line.
+| GitHub App token | this sandbox | Contents-write only; repository settings return 403 `Resource not accessible by integration`.
+|===
+
+== Definitions of done
+
+=== A task is done when
+
+. The acceptance command was run and its output is quoted in the commit message
+   or the receipt.
+. The falsifier was attempted and the failure was observed (for gates and
+   checkers, at least once ever, and recorded in the task card).
+. Any generated artefact was regenerated (`face-b.cspec`, repo map, receipt).
+. The specification's claims ledger row, if any, still says the truth.
+. No new `{{PLACEHOLDER}}`, no `.md` under `docs/`, no missing SPDX header.
+
+=== A gate is done when
+
+. It fails when the thing it guards is broken — demonstrated, not assumed.
+. A missing tool produces `not-run`, never `ok`.
+. Its output appears in the receipt, or the receipt records why not.
+
+=== A receipt is honest when
+
+. `status_class` is `Receipt` **only** if every witness has three kernel
+   verdicts over one `.dk` digest (I4).
+. Every `not-run` is visible and attributable to a named missing tool.
+. The TCB is named: tool, version, and hash for each checker.
+. The digests it cites can be recomputed by `verify.sh` on a fresh clone.
+
+=== A milestone is done when
+
+. Its exit gate is green on `main` in CI, not only locally.
+. The specification has been amended in the same release if the milestone
+   changed a claim (I10).
+. This plan's status board says `done (evidence: …)` with a commit and a gate.
+
+=== A specification change is done when
+
+. The claims ledger gains or updates a row.
+. Every `§`-reference still resolves (the ledger is unnumbered front matter; the
+   first numbered section is Executive architecture).
+. `docs/spec/ATOMA-SPEC.adoc` renders: `npx @asciidoctor/core` or any
+   Asciidoctor, with no new warnings; tables balanced.
+
+== Change protocol
+
+=== Branches, commits, receipts
+
+* Work on a branch; the session branch is `arena/4f8f5ab1-zigprove` and is
+  never renamed. Do not create or push other branches.
+* A commit that changes a gate says which gate and quotes the new output.
+* A commit that changes a claim updates the ledger in the *same* commit.
+* `witness/` is committed. Build caches are not (`.zig-cache/`, `zig-out/`,
+  `*.agdai`, `build/`, `node_modules/`).
+* Never force-push a branch others may have based work on.
+
+=== How to change this plan
+
+Add or amend a task card, keep its ID, and record the reason in the card. If the
+change moves a milestone's exit gate, it needs an ADR in `docs/decisions/` and a
+matching amendment to `docs/spec/ATOMA-SPEC.adoc` §10.
+
+[[deviations]]
+=== Deviations log
+
+Newest first. A deviation is any place reality differs from this plan.
+
+[cols="1,1,4,1", options="header"]
+|===
+| Date | Task | Deviation | Owner
+
+| 2026-10-22 | plan | Revision 1 created. `verify.sh` green through G11; K-track blocked on absent binaries; A1/A2 blocked on owner action. | agent
+|===
+
+== Risk register
+
+[cols="1,3,1,1,3", options="header"]
+|===
+| ID | Risk | Likelihood | Impact | Mitigation / trigger
+
+| R1 | The kernel chain proves the encoding, not the program, and the gap is quietly forgotten | High | High | K2 states the limit in the document; T7 states the refinement assumptions; receipts name the class.
+| R2 | Mounting pressure to mark `COMPLETE` for a demo | Medium | High | The promotion rule is code (K7), not a checklist item; the schema test refuses two kernels.
+| R3 | The store-fragment theorem turns out to need an axiom | Low | High | T1's disjointness premise is the escape valve; if an axiom is needed, the fragment narrows rather than the invariant weakening.
+| R4 | ECHIDNA's Dedukti export does not cover QF_BV obligations | Medium | High | K1 is a time-boxed spike precisely to find this early; the finding becomes an upstream issue, not a private fork.
+| R5 | Zig churn breaks the pinned CLI | High | Medium | `.zig-version`; the 0.15→0.16 port is one line; the example builds on two releases.
+| R6 | `just repo-init` rewrites something Atoma depends on | Medium | Medium | A1 runs on a branch with a backup; the diff is reviewed line by line; the gates re-run after.
+| R7 | The plan rots into aspiration (dead tasks, stale statuses) | High | Medium | Status board plus the deviations log; an agent that finishes a task updates the board in the same commit.
+| R8 | Second and third examples need subset features that get added silently | Medium | High | H1's falsifier: a new feature is a specification change with a ledger row, never an edit in place.
+|===
+
+== Open questions for the owner
+
+Each has a default so work does not stall. Answering one turns it into a task.
+
+[cols="1,4,2", options="header"]
+|===
+| ID | Question | Default if unanswered
+
+| O1 | Is the Idris2 ABI module the single normative Face A, or may other repos in the estate declare contracts in a different shape? | Single shape; `.cspec` v1 only.
+| O2 | Does A1 (minting) happen before or after the kernel chain? | Before — it unblocks CI and A7, and touches no proof.
+| O3 | For T6, SPARK or Creusot? | Creusot — the estate already ships Rust tooling; revisit if `creusot` is not installable in CI.
+| O4 | Is a Python waiver acceptable instead of A6's port? | No; port it. A waiver with a sunset date is the fallback.
+| O5 | Which target classes must Phase 1 receipts cover? | The four G2 triples; no big-endian, no 32-bit non-wasm.
+| O6 | Who signs a `COMPLETE (Receipt)` — the owner, or CI alone? | CI alone, if all three kernels are present; the receipt names the kernels, not a person.
+| O7 | Does the badge live on `main` or on a `governance-badges` branch? | `governance-badges`, as `settings.yml`'s existing endpoints expect.
+| O8 | Is `witness/` allowed to grow per-commit, or one receipt per release? | One per gate run, pruned to the latest per gate in `main`.
+|===
+
+== Appendix A — file map
+
+[cols="2,4", options="header"]
+|===
+| Path | What lives there
+
+| `docs/spec/ATOMA-SPEC.adoc` | The specification: IR, subset, semantics, pipeline, worked example, roadmap, claims ledger.
+| `docs/plan/ULTRAPLAN.adoc` | This file.
+| `docs/integration/ECHIDNA.adoc` | (K1) the measured ECHIDNA surface.
+| `docs/spec/DK-ENCODING.adoc` | (K2) obligation → `.dk`.
+| `docs/theory/atoma/REFINEMENT.adoc` | (T7) the refinement statement.
+| `tools/atoma/` | CLI: `canon`, `hash`, `vc-hash`, `dk-hash`, `src-hash`, `extract`, `check`, `equiv`, `mutate`, `ops`, `selftest`; `frontend.zig` holds extract and check.
+| `examples/atoma/frame-v1/` | The worked example: source, faces, layout, VCs, fixtures, `verify.sh`, `witness/`.
+| `verification/atoma/agda/` | `Bv`, `Lin`, `Core`, `Soundness`; `check-agda.sh` at `verification/atoma/`.
+| `verification/proofs/<prover>/MANIFEST` | The estate's proof registry (A3 adds four rows).
+| `scripts/check-proofs.sh` | Estate proof gate; called by `just proof-check-all`.
+| `.github/settings.yml` | Repository settings *without* identity keys; never add name/description.
+| `witness/phase0.receipt.json` | The current receipt; the one artefact that must never lie.
+|===
+
+== Appendix B — command index
+
+[source,bash]
+----
+# everything at once
+cd examples/atoma/frame-v1 && ./verify.sh
+
+# the tool
+cd tools/atoma && zig build && zig build test && ./zig-out/bin/atoma selftest
+
+# one gate at a time
+atoma extract src/frame_parse.zig --symbol atoma_frame_parse   # G8
+atoma check src/frame_parse.zig                                 # G9
+atoma check fixtures/violations.zig                             # G10, exits 1
+atoma equiv spec/face-a.cspec spec/face-b.cspec                 # G5
+atoma mutate spec/face-a.cspec off_by_one > /tmp/m.cspec         # G6; `atoma ops` lists operators
+zig build-obj tools/layout_negative.zig -target wasm32-freestanding -fno-emit-bin  # G4, must fail
+
+# metatheory
+../../../verification/atoma/check-agda.sh                       # G11
+for m in Bv Lin Core Soundness; do agda --safe --without-K "$m.agda" || exit 1; done
+
+# estate
+bash scripts/check-proofs.sh agda
+bash scripts/check-no-placeholders.sh
+bash scripts/gen-repo-map.sh --worktree
+just doctor
+----
+
+Every command above was run in this repository on 2026-10-22 unless the task
+that introduces it is marked `blocked`. A command in this appendix that fails is
+a defect in the plan: fix the document in the same commit that fixes the tree.

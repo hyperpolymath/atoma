@@ -1489,6 +1489,7 @@ program has a receipt.
 |===
 | Path | What lives there
 
+| `docs/plan/ULTRAPLAN.adoc` | the delivery plan: milestones, tasks, gates, blocked work
 | `tools/atoma/` | the CLI: `canon`, `hash`, `vc-hash`, `dk-hash`, `src-hash`, `extract`, `check`, `equiv`, `mutate`, `ops`, `selftest`
 | `tools/atoma/src/frontend.zig` | `extract` (doc comments → Face B) and `check` (subset diagnostics)
 | `examples/atoma/frame-v1/abi/` | Idris2 contract (Face A), package file, linearity negative tests

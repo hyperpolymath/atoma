@@ -185,6 +185,10 @@ predecessors did.
 | yes
 | -
 
+| `tools/`
+| yes
+| -
+
 | `verification/`
 | optional
 | proofs; only where formal-proofs is declared
@@ -237,7 +241,6 @@ your own repo - but do not read their emptiness as neglect here.
 | `docs/whitepapers/academic/`
 | `docs/whitepapers/industry/`
 | `docs/whitepapers/outreach/`
-| `examples/`
 | `features/boj-server/`
 | `features/panic-attacker/`
 | `src/aspects/`
