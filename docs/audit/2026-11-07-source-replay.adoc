@@ -19,7 +19,9 @@ profiles; their environment evidence must not be described as identical.
 
 The real ECHIDNA `prove --output json` command compiles the exact generated
 file. A separate `coqchk` process checks its compiled library recursively.
-An importing audit checks the theorem's type and requires `Print Assumptions`
+An importing audit restates the expected theorem directly from the source
+with `source-coq-audit`, rather than trusting definitions inside the returned
+library. It requires `Print Assumptions`
 to report a closed context. The Coq backend invokes `coqc` by name; the adapter
 checks that this is the same compiler it records in the tool manifest.
 
@@ -27,7 +29,9 @@ Local replay controls passed for wrapping increment and identity. Rejections
 cover a wrong body, a constant body, stale source, an admitted replacement,
 a missing checker, an existing evidence directory, malformed JSON, unknown,
 a fake verified result without a compiled proof, and a corrupted compiled
-proof. A separate admitted-theorem control compiles and passes `coqchk` but
+proof, and a valid compiled proof of the wrong model while the expected proof
+source is left intact. The last control catches self-referential audits that
+only check a returned library against its own definitions. A separate admitted-theorem control compiles and passes `coqchk` but
 reports an axiom, demonstrating why the closure check is necessary.
 
 Hosted results must be read from the exact PR head; local evidence alone is

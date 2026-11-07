@@ -86,6 +86,16 @@ pub const Program = struct {
             \\
         );
     }
+
+    /// Restate the expected theorem from source. Referring to body/specification
+    /// inside the returned library would only check that library against itself.
+    pub fn emitCoqAudit(self: Program, w: *std.Io.Writer) !void {
+        const hash = std.fmt.bytesToHex(self.source_hash, .lower);
+        try w.print("(* atoma.source.u8.audit.v1 source-blake3:{s} *)\n", .{hash});
+        try w.writeAll("From Coq Require Import Arith.\nRequire Import AtomaProof.\nCheck (AtomaProof.atoma_u8 : forall x : nat, x < 256 -> ");
+        try self.body.coq(w);
+        try w.print(" = (x + {d}) mod 256).\nPrint Assumptions AtomaProof.atoma_u8.\n", .{self.ensures_add});
+    }
 };
 
 const Cursor = struct {

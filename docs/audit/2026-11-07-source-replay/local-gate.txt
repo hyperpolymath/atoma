@@ -55,5 +55,6 @@ REPLAY-FALSIFIER-KILLED malformed
 REPLAY-FALSIFIER-KILLED unknown
 REPLAY-FALSIFIER-KILLED no-proof
 REPLAY-FALSIFIER-KILLED corrupt
-REPLAY GATE PASS: two source-derived models checked, 10 rejection controls, axiom control; INCOMPLETE
+REPLAY-FALSIFIER-KILLED wrong-library
+REPLAY GATE PASS: two source-derived models checked, 11 rejection controls, axiom control; INCOMPLETE
 ATOMA GATE PASS — INCOMPLETE (Warrant); finite-model replay checked, program refinement unproved

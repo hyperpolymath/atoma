@@ -49,15 +49,24 @@ case ${FAKE_MODE:?} in
         "$REAL_ECHIDNA" "$@"
         printf 'corrupted compiled proof\n' > "${2%.v}.vo"
         ;;
+    wrong-library)
+        cp "$2" "$2.original"
+        # Both sides change, so this is a valid closed theorem, but for the
+        # wrong source model. Restore the expected .v after compiling it.
+        sed 's/(x + 1) mod 256/(x + 2) mod 256/g' "$2.original" > "$2"
+        "$REAL_ECHIDNA" "$@"
+        mv "$2.original" "$2"
+        ;;
     *) exit 2 ;;
 esac
 SH
 chmod +x "$work/fake-echidna"
-for mode in malformed unknown no-proof corrupt; do
+for mode in malformed unknown no-proof corrupt wrong-library; do
     case $mode in
         malformed|unknown) reason='malformed, non-verified or assumption-bearing' ;;
         no-proof) reason='produced no compiled proof' ;;
         corrupt) reason='independent compiled-proof check failed' ;;
+        wrong-library) reason='theorem type or assumption audit failed' ;;
         *) exit 2 ;;
     esac
     reject "$mode" "$reason" env REAL_ECHIDNA="$ECHIDNA" ECHIDNA="$work/fake-echidna" FAKE_MODE="$mode" \
@@ -74,4 +83,4 @@ printf 'Theorem admitted_control : False. Admitted.\nPrint Assumptions admitted_
     grep -q '^Axioms:' assumptions.txt
     ! grep -q '^Closed under the global context$' assumptions.txt
 )
-echo 'REPLAY GATE PASS: two source-derived models checked, 10 rejection controls, axiom control; INCOMPLETE'
+echo 'REPLAY GATE PASS: two source-derived models checked, 11 rejection controls, axiom control; INCOMPLETE'

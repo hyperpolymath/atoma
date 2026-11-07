@@ -11,6 +11,10 @@ fail() { echo "REPLAY-REFUSED: $*" >&2; exit 1; }
 for tool in "$ATOMA" "$ECHIDNA" "$COQC" "$COQCHK" jq timeout sha256sum; do
     command -v "$tool" >/dev/null || fail "missing tool: $tool"
 done
+ATOMA=$(realpath "$(command -v "$ATOMA")")
+ECHIDNA=$(realpath "$(command -v "$ECHIDNA")")
+COQC=$(realpath "$(command -v "$COQC")")
+COQCHK=$(realpath "$(command -v "$COQCHK")")
 # The pinned ECHIDNA Coq backend invokes coqc by name. Audit that exact
 # compiler, even when a caller supplies COQC as an absolute path.
 [[ $(realpath "$(command -v coqc)") == $(realpath "$(command -v "$COQC")") ]] \
@@ -45,12 +49,11 @@ jq -e -s --arg goal "$out/AtomaProof.v" '
 # Check the actual compiled library, recursively, with no -admit/-norec.
 timeout -k 5 120 "$COQCHK" -silent -Q . '' AtomaProof > coqchk.txt 2>&1 \
     || fail 'independent compiled-proof check failed'
-# coqchk permits axioms. Require this particular theorem to have none.
-cat > Audit.v <<'COQ'
-Require Import AtomaProof.
-Check (atoma_u8 : forall x : nat, x < 256 -> body x = specification x).
-Print Assumptions atoma_u8.
-COQ
+# Restate the expected theorem from the source snapshot, never by trusting
+# body/specification definitions in the returned .vo. A valid proof of a
+# different model must fail even if the backend leaves the expected .v intact.
+# coqchk also permits axioms, so audit this theorem's full assumption closure.
+"$ATOMA" source-coq-audit source.zig > Audit.v
 timeout -k 5 120 "$COQC" -q -Q . '' Audit.v > assumptions.txt 2> assumptions.stderr \
     || fail 'theorem type or assumption audit failed'
 [[ $(grep -c '^Closed under the global context$' assumptions.txt) == 1 ]] \
