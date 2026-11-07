@@ -112,3 +112,40 @@ https://github.com/hyperpolymath/atoma/actions/runs/42395104592[run 42395104592]
 at commit `63018ee9c73bb1e2d3a436ef067cfb3c4e82c374`, including artifact upload.
 The final PR head also adds the CLI I/O and empty-registry falsifiers; its run
 must pass independently and is linked in the PR description.
+
+== Follow-up: regression recovery and merge-readiness repair
+
+Commit `b980405` applied an obsolete review suggestion inside an existing catch
+block. The duplicate handler did not compile; the required gate correctly failed
+before claiming success. Commit `f87b740` repairs the handler, retains exit 3 for
+I/O/parse failures and extends failed-output checks to the successful
+`source-check` report. Hosted run 42403751163 passes. The checked input manifest
+has been regenerated from the repaired implementation, not copied from the
+earlier passing CLI. The normative spec no longer claims an executable Idris
+foreign binding.
+
+The follow-up also renders identity/contact metadata using the inherited
+canonical `repo-init` in a disposable review tree. Its provenance resolver
+recovered the original template commit `889f7f79aa99` from Atoma's root commit.
+The actual implementation, historical Atoma plan and evidence were preserved;
+template-only overlay/seed files were removed as prescribed by the initializer.
+Atoma now declares experimental maturity and the Formal Verification & Proofs
+clade, with repository creation dated 2026-10-22. This does not register a new
+external clade record or certify standards compliance. Existing licence texts
+and licence identifiers are unchanged; REUSE contact metadata is rendered.
+
+Reusable workflow references follow the standards repository's transfer to
+`metadatastician/standards`, retaining the same immutable commit. Lock metadata
+records its current owner ID and `main` as the resolving branch; the retained
+standards/cicd-suite commits were checked as ancestors of their respective main
+branches. Workflow closure remains checked by the unchanged lock-sync gate.
+The Actions allow-list admits only the exact configured standards workflow
+commits and the existing pinned EditorConfig release; GitHub-owned and verified
+publisher policy remains enabled. No required check or protection was removed.
+
+The Windows `gh actions-lock` global verification still misclassifies job-level
+reusable refs as stale. Its scoped action verification and the separate
+job-aware closure check are recorded distinctly; a global pass is not claimed.
+The existing SonarCloud project is `hyperpolymath_zigprove` (Atoma's previous
+name); the local scanner configuration now targets that project rather than
+the template's project.

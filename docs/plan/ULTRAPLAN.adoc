@@ -37,7 +37,7 @@ The following gaps remain central:
   declarations and admitted skeletons are not checked proof translations.
 * Store, loops, aliasing, capabilities, modular calls and source refinement
   remain unproved. There is no sound general Zig verifier yet.
-* The inherited deed/arrival pack still describe a template. Estate compliance
+* The deed/arrival pack now identify experimental Atoma. Estate compliance
   is not certified. CI provisioning has a bounded documented deviation;
   Guix closure and all generic estate workflows are separate outstanding work.
 
@@ -107,7 +107,7 @@ alternative spelling of done. Owners below are roles, not assigned people.
 [cols="1,2,4",options="header"]
 |===
 | IDs | State / owner | Scope and next acceptance
-| A1 | blocked / owner | Mint identity separately without automated licence edits; remove inherited production claims.
+| A1 | implemented / maintainer | Identity and ownership rendered from the canonical initializer; original template provenance recovered; existing licence terms preserved. External registry publication and release certification remain separate.
 | A2 | done / maintainer | About and 20 topics read back in recon; keep the metadata script/live About coherent and cautious about certificates.
 | A3 | implemented / proof maintainer | Atoma modules registered; scoped unlisted/stale-entry checks are part of the gate.
 | A4 | partial / build maintainer | Pinned CI provisioning and recorded local profile; Guix closure/transitive reproducibility open.

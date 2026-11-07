@@ -1,48 +1,46 @@
-= Architecture
+// SPDX-License-Identifier: CC-BY-SA-4.0
+// Copyright (c) Jonathan D.A. Jewell <j.d.a.jewell@open.ac.uk>
+// SPDX-FileCopyrightText: 2026 Jonathan D.A. Jewell (hyperpolymath) <j.d.a.jewell@open.ac.uk>
+= Atoma architecture
+:revdate: 2026-11-07
 
-== Overview
+Atoma's central invariant is that evidence may claim no more than the source,
+semantics and checkers it actually covers. A failed or missing check must not
+produce a successful verification status.
 
-This repository follows a modular, maintainable architecture designed for clarity, scalability, and long-term sustainability.
+== Components and data flow
 
-== Directory Structure
+* `tools/atoma/src/source.zig` parses and lowers the closed u8 source pilot,
+  evaluates its finite domain and emits QF_BV obligations. This lowering and
+  Zig's compiler are still trusted; there is no source-refinement theorem.
+* `tools/atoma/src/frontend.zig` screens general Zig syntax and annotations.
+  Its token screen does not establish semantic subset membership.
+* `examples/atoma/frame-v1/abi` contains the normative Idris contract encoder
+  and QTT resource model. `scripts/atoma-check-idris.sh` executes extraction
+  and checks it against the canonical contract. There is no live Idris FFI.
+* `examples/atoma/frame-v1/src` is the native frame implementation. Its
+  poisoned-output tests and target layout witnesses are compiled evidence.
+* `verification/atoma/agda` proves the store-free model theorem, separately
+  from implementation testing and SMT model obligations.
+* `scripts/atoma-gate.sh` rebuilds, checks registered proof coverage and
+  collects tool identities, input hashes, verdicts and falsifier outcomes.
 
-[source]
-----
-.
-├── src/           # Source code
-├── tests/        # Test suites
-├── docs/         # Documentation
-├── scripts/      # Utility scripts
-├── config/       # Configuration files
-├── LICENSE       # License file
-├── LICENSES/     # Full license texts
-└── README.adoc   # Project documentation
-----
+Inputs are source files, contracts, proof registrations and tool identities.
+The source pilot rejects constructs outside its closed grammar before emitting
+an obligation. Outputs are diagnostics, solver inputs and scoped evidence.
+Changing a body must change the obligation or invalidate the evidence.
 
-== Design Principles
+== Trust and cross-cutting concerns
 
-* *Separation of Concerns*: Each module has a single responsibility
-* *Testability*: Code is written to be easily testable
-* *Documentation*: All public APIs are documented
-* *Configuration*: Environment-specific settings are externalized
+The current ceiling is INCOMPLETE / Warrant. Parser/lowering correctness,
+compiler refinement, general memory/alias semantics and independent proof
+exchange/replay remain open. An Agda model theorem does not close these gaps.
+Pointer validity and disjoint output leases are explicit frame ABI assumptions.
 
-== Dependencies
+CI treats tool availability, exit status, output delivery, current-source
+rebuilding, proof coverage and provenance as interacting correctness concerns.
+Both source commands return I/O status 3 if their result cannot be delivered.
+The native frame API remains single-threaded.
 
-* External dependencies are minimized and clearly declared
-* Version pinning is used for reproducibility
-
-== Security Considerations
-
-* Sensitive data is never committed to the repository
-* Secrets are managed through environment variables or secure vaults
-* Regular dependency audits are performed
-
-== Maintainability
-
-* Code follows consistent style guidelines
-* Pull requests require review and CI checks
-* Issues and discussions are tracked transparently
-
----
-
-_Last updated: 2026-07-18_
+See link:plan/ULTRAPLAN.adoc[the v1 gates] and
+link:decisions/ATOMA-SOURCE-TO-PROOF.adoc[the source/proof boundary].
