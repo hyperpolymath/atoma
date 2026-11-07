@@ -1088,7 +1088,7 @@
     :extra-branches ()
     :canon-version "2.1.2"
     :criteria-sha256 "6a5aa8857bd0d0d58ef48827938ca17c251b6b854dacf59d306388d61694d82a"
-    :gates-sha256 "2f31f46d4753432e0aa8c9c28f339e18e062c98dc6e6ef4ecbb76993cf37638b"
+    :gates-sha256 "e70efd2f53c9445e30da4baf770366f04a4a84ffd844a01426e587e565b53e6a"
     :archetype ""
     ; Which minting path actually ran (#201/#203 needed this signal).
     :minted-by "repo-init"
