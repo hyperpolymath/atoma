@@ -21,9 +21,9 @@ head must independently pass hosted checks before merge.
 
 == Next acceptance
 
-* Source/proof/replay vertical slice: a source-derived obligation accepted by
-  an independent checker, with exact source/tool identity and stale evidence
-  rejection. No unproved declaration or admitted theorem may count as replay.
+* Extend the locally passing finite-model replay slice to a checked
+  source-to-model argument. Its ECHIDNA/coqchk path requires fresh source/proof
+  identity and closed assumptions; it does not establish Zig refinement.
 * Typed semantic boundary and explicit memory/alias counterexample.
 * Second-language transfer spike before choosing the full sibling sequence.
 

@@ -1,0 +1,74 @@
+// SPDX-License-Identifier: CC-BY-SA-4.0
+// SPDX-FileCopyrightText: 2026 Jonathan D.A. Jewell <j.d.a.jewell@open.ac.uk>
+= Atoma R1 finite-model replay slice
+:revdate: 2026-11-07
+
+== Scope and result
+
+`source-coq` lowers the same closed Zig u8 fragment as `source-vc` and emits a
+Coq theorem about all 256 inputs. The body and postcondition are emitted
+separately. A false obligation is still emitted: the finite evaluator does not
+choose a successful proof. Coq checks finite reflection and the theorem that
+the domain check entails the postcondition for every input below 256.
+
+The local positive run used Zig 0.15.2, ECHIDNA 2.3.0 built with Cargo.lock at
+`2ab7574ae1e574b0e881422fde6252bf79dea178`, and Rocq/coqchk 9.2. ECHIDNA was
+built with Rust 1.99.1 locally. The separate hosted bootstrap profile uses
+Rust 1.99.0 and Ubuntu Noble Coq 8.18.0+dfsg-1build2. These are different
+profiles; their environment evidence must not be described as identical.
+
+The real ECHIDNA `prove --output json` command compiles the exact generated
+file. A separate `coqchk` process checks its compiled library recursively.
+An importing audit checks the theorem's type and requires `Print Assumptions`
+to report a closed context. The Coq backend invokes `coqc` by name; the adapter
+checks that this is the same compiler it records in the tool manifest.
+
+Local replay controls passed for wrapping increment and identity. Rejections
+cover a wrong body, a constant body, stale source, an admitted replacement,
+a missing checker, an existing evidence directory, malformed JSON, unknown,
+a fake verified result without a compiled proof, and a corrupted compiled
+proof. A separate admitted-theorem control compiles and passes `coqchk` but
+reports an axiom, demonstrating why the closure check is necessary.
+
+Hosted results must be read from the exact PR head; local evidence alone is
+not a hosted pass. The existing required `Atoma soundness gate` now provisions
+the replay tools and runs these checks without a missing-tool skip.
+
+== Evidence and trust boundary
+
+Run `bash scripts/atoma-gate.sh` for the complete gate, or build the CLI and
+run `bash scripts/atoma-replay-gate.sh` with the pinned tools on PATH.
+The latter writes fresh evidence directories below `build/atoma-evidence/`.
+For an individual proof use:
+
+----
+tools/atoma/zig-out/bin/atoma source-coq examples/atoma/source-u8/increment.zig > /tmp/AtomaProof.v
+bash scripts/atoma-replay.sh examples/atoma/source-u8/increment.zig /tmp/AtomaProof.v /tmp/new-atoma-replay
+----
+
+The adapter regenerates the proof from a source snapshot and requires exact
+byte equality. A pre-existing directory is refused. The original source,
+proof and regenerated proof are compared again after subprocesses finish.
+The result includes the ECHIDNA JSON, compiled library, assumption audit,
+tool versions, executable hashes and input hashes. A receipt is written only
+after every stage succeeds. Its status is always `INCOMPLETE`.
+
+This is source-derived finite-model proof replay. It is *not* replay of a Z3
+proof certificate, a Zig/compiler refinement proof, an ECHIDNA translation
+proof, or the full Dedukti/Coq/Lean4 chain. Coq compilation and coqchk are
+separate checks within one prover family. The parser, lowering/emitter,
+adapter, toolchain and execution environment remain trusted. Exact hash and
+byte binding detects mismatched evidence; it does not prove the emitter's
+semantic correctness. The compiled Zig exhaustive witness remains separate.
+
+== Next acceptance
+
+R1 is partial. The next work is an explicit typed boundary with source
+locations, one aliasing counterexample, and a checked argument connecting
+admitted Zig to the model. Before broadening the language, test invalidation
+across compiler/target/mode and imported-source changes. Cross-kernel replay
+and authenticated COMPLETE receipts remain later conjunctive v1 gates.
+
+Transfer to Quintessence, Apodeixis.jl and Bactrian should reuse the evidence
+protocol, failure cases and trust ledger first. This result does not establish
+shared actor, dynamic-dispatch, memory or effect semantics for those languages.

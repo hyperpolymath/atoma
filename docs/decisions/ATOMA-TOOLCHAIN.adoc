@@ -16,6 +16,8 @@ the entire transitive system environment.
 | Z3 | 4.13.3 official x86_64 glibc 2.35 archive | SHA-256 pinned in installer; local Debian 4.13.3-1 also exercised
 | Idris2 | v0.8.0 commit `15a3e4e70843f7a34100f6470c04b791330788df`, Chez bootstrap | Exact fetched commit checked; local 0.8.0-b6cbc25d5 is a separate recorded profile
 | Agda | Ubuntu package `agda-bin=2.6.3-1build1` | apt authentication and exact package version; local Debian 2.6.4.3-1+b2 is a separate recorded profile
+| Coq replay | Ubuntu Noble `coq=8.18.0+dfsg-1build2` | coqc and coqchk from the authenticated package; local Rocq 9.2 is a separate recorded profile
+| ECHIDNA | `2ab7574ae1e574b0e881422fde6252bf79dea178`, locked release build, Rust 1.99.0 | No default optional prover features; local build uses Rust 1.99.1. This consumes the existing Rust verifier; it adds no Rust implementation proof claim
 | Actions | checkout v7.0.1, upload-artifact v7.0.2 | Immutable commits recorded by `gh actions-lock` in `actions.lock`; no credential persistence; read-only repository token
 |===
 

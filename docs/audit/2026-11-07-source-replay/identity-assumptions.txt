@@ -1,0 +1,3 @@
+atoma_u8 : forall x : nat, x < 256 -> body x = specification x
+     : forall x : nat, x < 256 -> body x = specification x
+Closed under the global context

@@ -1,0 +1,15 @@
+// SPDX-License-Identifier: CC-BY-SA-4.0
+// SPDX-FileCopyrightText: 2026 Jonathan D.A. Jewell <j.d.a.jewell@open.ac.uk>
+= Local replay evidence
+
+These are results of the complete local gate, using the separately documented
+local tool profile. The source manifest records the bytes executed in that
+run; it is not a claim that a later documentation/CI repair commit was tested.
+The generated proofs, compiled libraries, ECHIDNA result, coqchk logs, receipt
+and tool hashes are generated afresh under build/atoma-evidence/replay.*/ and
+uploaded by the required hosted Atoma soundness workflow. The committed text
+is a review aid; fresh exact-head hosted evidence is the merge gate.
+
+The frame receipt remains a different model and still lacks its full kernel
+chain. The new finite-u8 replay result remains INCOMPLETE: source/compiler
+refinement, memory/aliasing and cross-kernel translation are unproved.

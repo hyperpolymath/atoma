@@ -35,6 +35,8 @@ The following gaps remain central:
   semantic subset checker.
 * No real ECHIDNA-to-Dedukti/Coq/Lean4 replay chain is demonstrated. Exported
   declarations and admitted skeletons are not checked proof translations.
+  The R1 slice now exercises real ECHIDNA-to-Coq finite-model compilation,
+  independent coqchk and a no-axioms audit; the full chain remains open.
 * Store, loops, aliasing, capabilities, modular calls and source refinement
   remain unproved. There is no sound general Zig verifier yet.
 * The deed/arrival pack now identify experimental Atoma. Estate compliance
@@ -90,6 +92,13 @@ Re-estimate after R1, with compiler/formal-methods expertise available.
 | R4 | Exchange, kernel replay, receipts and invalidation | 6–12+ | End-to-end replay; adversarial certificates fail
 | R5 | Three pilots, mutation/aspect campaigns, installation/release audit | 5–8 | Published release evidence; all v1 gates satisfied
 |===
+
+R1 progress: the source-bound u8 function now has a generated Coq model
+theorem and a real ECHIDNA/coqchk path with adversarial replay controls.
+This closes a narrow replay experiment, not R1: the alias counterexample,
+typed-subset expansion and source-to-model refinement argument remain open.
+Do those before expanding features or shortening the v1 estimate. See
+`docs/audit/2026-11-07-source-replay.adoc`.
 
 An initial envelope is about 30–60 focused person-weeks plus contingency, with
 some overlap. Two experienced contributors might deliver the restricted v1 in

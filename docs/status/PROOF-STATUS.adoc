@@ -18,8 +18,10 @@ execution over 256 inputs; wrong body rejected | Parser/lowering/compiler
 remain trusted; general calls, imports, memory and loops are refused
 | Legacy frame SMT | Eight unsat and six sat model obligations | Not derived
 from the frame implementation body
-| Independent replay | Pending next milestone | No complete
-ECHIDNA/Dedukti/Coq/Lean4 chain has been demonstrated
+| Finite-model replay | Source-derived Coq theorem, actual ECHIDNA compilation,
+independent coqchk and closed-assumptions audit; adversarial controls |
+Trusted frontend/emitter; no Zig refinement or complete
+ECHIDNA/Dedukti/Coq/Lean4 chain
 |===
 
 The inherited general ABI scaffold has four Idris quarantines. Its Types model

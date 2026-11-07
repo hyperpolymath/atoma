@@ -67,6 +67,13 @@ cycles; imports, aliases and higher-order calls are not generally resolved.
 
 == Next semantic work
 
+The R1 finite-model replay slice adds `source-coq` and
+`scripts/atoma-replay.sh`: actual ECHIDNA compilation, independent `coqchk`,
+and a closed-assumptions audit, with exact regenerated-proof/source binding.
+See `docs/audit/2026-11-07-source-replay.adoc` for evidence and trust limits.
+This checks a generated Coq model theorem, not a Z3 certificate translation
+or Zig refinement. R1 and the full required replay chain remain partial.
+
 . Define a closed typed scalar/struct/slice subset and an assumption manifest;
   pin the compiler adapter and targets. Add source locations to every IR node.
 . Model finite machine arithmetic separately from mathematical integers. Check

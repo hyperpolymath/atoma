@@ -71,7 +71,7 @@ fn sourceReport(comptime fmt: []const u8, args: anytype) void {
 }
 
 fn usage() noreturn {
-    sayLine("usage: atoma <canon|hash|vc-hash|dk-hash|src-hash|extract|check|vc|source-vc|source-check|equiv|mutate|ops|selftest> [args]");
+    sayLine("usage: atoma <canon|hash|vc-hash|dk-hash|src-hash|extract|check|vc|source-vc|source-coq|source-check|equiv|mutate|ops|selftest> [args]");
     std.process.exit(2);
 }
 
@@ -85,7 +85,7 @@ pub fn main() !void {
     if (args.len < 2) usage();
     const cmd = args[1];
 
-    if (std.mem.eql(u8, cmd, "source-vc") or std.mem.eql(u8, cmd, "source-check")) {
+    if (std.mem.eql(u8, cmd, "source-vc") or std.mem.eql(u8, cmd, "source-coq") or std.mem.eql(u8, cmd, "source-check")) {
         if (args.len != 3) usage();
         const src = readFile(args[2]) catch |e| {
             print("SOURCE-IO-ERROR {s}: {s}\n", .{ args[2], @errorName(e) });
@@ -98,10 +98,11 @@ pub fn main() !void {
                 else => @as(u8, 1),
             });
         };
-        if (std.mem.eql(u8, cmd, "source-vc")) {
+        if (!std.mem.eql(u8, cmd, "source-check")) {
             var out = std.Io.Writer.Allocating.init(gpa);
             defer out.deinit();
-            p.emit(&out.writer) catch |e| {
+            const emitted = if (std.mem.eql(u8, cmd, "source-coq")) p.emitCoq(&out.writer) else p.emit(&out.writer);
+            emitted catch |e| {
                 std.debug.print("SOURCE-IO-ERROR: {s}\n", .{@errorName(e)});
                 std.process.exit(3);
             };

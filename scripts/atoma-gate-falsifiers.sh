@@ -47,14 +47,14 @@ echo 'falsifier PASS solver stdout cannot hide a failed process'
 atoma="$root/tools/atoma/zig-out/bin/atoma"
 printf 'export fn broken(' > "$tmp/syntax.zig"
 truncate -s 16777217 "$tmp/too-large.zig"
-for command in source-check source-vc; do
+for command in source-check source-vc source-coq; do
     for input in absent.zig syntax.zig too-large.zig; do
         rc=0
         "$atoma" "$command" "$tmp/$input" > "$tmp/out" 2>&1 || rc=$?
         [[ "$rc" == 3 ]] || { echo "FAIL $command $input exit=$rc, expected I/O/parse exit 3" >&2; exit 1; }
     done
 done
-for command in source-check source-vc; do
+for command in source-check source-vc source-coq; do
     rc=0
     "$atoma" "$command" "$root/examples/atoma/source-u8/increment.zig" > /dev/full 2> "$tmp/out" || rc=$?
     [[ "$rc" == 3 ]] || { echo "FAIL $command output write error exit=$rc, expected 3" >&2; exit 1; }

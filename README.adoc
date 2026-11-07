@@ -8,12 +8,13 @@ Atoma develops source-bound verification for an explicitly closed Zig subset.
 It currently provides canonical contracts, a syntax screen, typechecked Idris2
 specifications, Agda proofs of a store-free model and a finite u8 source pilot.
 It is not yet a general sound verifier for Zig. Evidence remains
-*INCOMPLETE (Warrant)*: compiler/refinement arguments and independent replay
-are unfinished.
+*INCOMPLETE (Warrant)*: finite-model replay now runs through ECHIDNA and
+coqchk, while compiler/refinement arguments and the full kernel chain remain
+unfinished.
 
 == Build and check
 
-Use Zig 0.15.2, Z3 4.13.3 and the Agda/Idris2 profiles in
+Use Zig 0.15.2, Z3 4.13.3 and the Agda/Idris2/ECHIDNA/Coq profiles in
 link:docs/decisions/ATOMA-TOOLCHAIN.adoc[the toolchain decision].
 From the repository root:
 
@@ -25,6 +26,8 @@ bash scripts/atoma-gate.sh
 The gate rebuilds the current source, runs contract extraction and registered
 proof checks, checks the good and wrong-body fixtures against every u8 input,
 and exercises failures for missing tools, stale executables and I/O errors.
+It also regenerates source-bound Coq model proofs, runs actual ECHIDNA,
+checks the compiled libraries with coqchk and audits theorem assumptions.
 Evidence is written to `build/atoma-evidence/`. The hosted workflow publishes
 the same evidence and is required on `main`.
 
@@ -44,8 +47,9 @@ translation, provenance and kernel-replay evidence.
 == Plan and collaboration
 
 The link:docs/plan/ULTRAPLAN.adoc[v1 plan] defines conjunctive release gates,
-estimates and stop points. The next stage is a source/proof/replay vertical
-slice and explicit alias/memory boundary work.
+estimates and stop points. The first finite-model replay slice is described
+in link:docs/audit/2026-11-07-source-replay.adoc[the replay report]. Next are
+the typed semantic boundary, an alias counterexample and checked refinement.
 The link:docs/decisions/ATOMA-SIBLING-TRANSFER.adoc[sibling assessment] explains
 potential reuse with Quintessence, Apodeixis.jl and Bactrian.
 
