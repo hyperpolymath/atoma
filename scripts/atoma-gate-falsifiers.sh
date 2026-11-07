@@ -43,3 +43,28 @@ if Z3="$tmp/failed-z3" bash "$gate" > "$tmp/out" 2>&1; then
 fi
 grep -q 'FAIL G7 solver process failed:' "$tmp/out"
 echo 'falsifier PASS solver stdout cannot hide a failed process'
+
+atoma="$root/tools/atoma/zig-out/bin/atoma"
+printf 'export fn broken(' > "$tmp/syntax.zig"
+truncate -s 16777217 "$tmp/too-large.zig"
+for command in source-check source-vc; do
+    for input in absent.zig syntax.zig too-large.zig; do
+        rc=0
+        "$atoma" "$command" "$tmp/$input" > "$tmp/out" 2>&1 || rc=$?
+        [[ "$rc" == 3 ]] || { echo "FAIL $command $input exit=$rc, expected I/O/parse exit 3"; exit 1; }
+    done
+done
+rc=0
+"$atoma" source-vc "$root/examples/atoma/source-u8/increment.zig" > /dev/full 2> "$tmp/out" || rc=$?
+[[ "$rc" == 3 ]] || { echo "FAIL output write error exit=$rc, expected 3"; exit 1; }
+grep -q SOURCE-IO-ERROR "$tmp/out"
+echo 'falsifier PASS source command input/output errors are distinct from verification failures'
+
+mkdir -p "$tmp/verification/atoma/agda" "$tmp/verification/proofs/agda"
+cp "$root/verification/atoma/check-agda.sh" "$tmp/verification/atoma/"
+: > "$tmp/verification/proofs/agda/MANIFEST"
+if bash "$tmp/verification/atoma/check-agda.sh" > "$tmp/out" 2>&1; then
+    echo 'FAIL empty Agda registry accepted'; exit 1
+fi
+grep -q 'FAIL no registered Atoma Agda modules' "$tmp/out"
+echo 'falsifier PASS empty Agda registry rejected'

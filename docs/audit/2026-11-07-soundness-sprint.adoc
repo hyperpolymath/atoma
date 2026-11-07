@@ -45,8 +45,8 @@ cache renames had failed during reconnaissance.
 | Source-generated obligation | Good body unsat; same contract with wrong body sat
 | Finite source-model check | All 256 inputs accepted for good body; wrong body rejected with concrete counterexample
 | Compiled execution witness | Good executable passes all 256 inputs; wrong executable fails
-| Gate falsifiers | Missing Zig/Z3/Agda/Idris2, stale executable and failed solver process all rejected
-| Actions lock | Scoped generation/verification passed; action versions pinned by immutable lock entries
+| Gate falsifiers | Eight groups: missing Zig/Z3/Agda/Idris2, stale executable, failed solver process, source-command I/O/parse errors and empty proof registry all rejected
+| Actions lock | Atoma's two actions resolved and ran in hosted CI. Frozen lock verification fails on three inherited `not-pinned` entries in the central audit/dogfood chain; the committed JSON records that failure, not a global pass.
 | Receipt | INCOMPLETE / Warrant, unchanged claim class
 |===
 
@@ -82,6 +82,18 @@ workflow; new files now carry the repository's existing code/document
 declarations. Bootstrap and installation also use the same Idris prefix.
 No existing licence terms or declarations are changed.
 
+The official lock generator (v0.4.1), when run globally, removed reusable-
+workflow entries and made `scripts/check-lock-sync.sh` fail. Those generated
+changes were reverted. The three inherited frozen-lock warnings remain explicit
+estate debt requiring a coordinated fix in the canonical workflow/lock tooling;
+neither the existing lock-sync gate nor its coverage was weakened to get green.
+
+Review also identified inconsistent I/O exit codes in the new source commands.
+Missing/oversized/malformed input and failed output writes now return 3;
+counterexamples and unsupported constructs return 1. A failed stdout write
+is never silently discarded. An explicit empty-module guard supplements the
+Agda checker's existing empty-registry rejection.
+
 The active https://github.com/hyperpolymath/atoma/rules/26764574[Atoma soundness
 ruleset] requires `Atoma soundness gate` from GitHub Actions (integration
 15368) on `main`, with strict up-to-date checking and no bypass actors. The
@@ -94,3 +106,9 @@ Commits use GitHub's authenticated automatically signed commit API. Signature
 validity was checked through the API and independently with the official
 GitHub public signing key in an isolated keyring (`SIGNATURE_STATUS=G`);
 the user's normal keyring and signing configuration were not changed.
+
+The pinned hosted profile passed in
+https://github.com/hyperpolymath/atoma/actions/runs/42395104592[run 42395104592]
+at commit `63018ee9c73bb1e2d3a436ef067cfb3c4e82c374`, including artifact upload.
+The final PR head also adds the CLI I/O and empty-registry falsifiers; its run
+must pass independently and is linked in the PR description.

@@ -259,6 +259,7 @@ if command -v "$AGDA" >/dev/null 2>&1; then
     # Ordered digest over the four module sources: order matters because
     # Soundness imports Core imports Bv, so a permuted set is a different proof.
     modules=$(awk -F '|' '$1 == "verification/atoma/agda" && $3 == "gated" {print $2}' "$root/verification/proofs/agda/MANIFEST")
+    [ -n "$modules" ] || die "G11 no registered Agda modules"
     proof_modules=$(printf '%s\n' "$modules" | wc -l | tr -d ' ')
     proof_hash=$(
         for m in $modules; do
