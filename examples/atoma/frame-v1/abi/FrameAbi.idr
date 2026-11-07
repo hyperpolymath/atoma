@@ -4,10 +4,10 @@
 ||| FrameAbi — the normative ABI contract for the frame-v1 worked example.
 |||
 ||| This module is Face A of the contract. It is *the* specification: the Zig
-||| implementation, the C header and the SMT obligations are all derived from
-||| the values declared here. `frameParse : Contract` is a value; the extractor
-||| is `putStr (encode frameParse)`, and the bytes it prints are what
-||| `spec/face-a.cspec` contains after canonicalisation.
+||| implementation is checked against the declared layout and contract text.
+||| The historical SMT examples are hand-authored, not implementation proofs.
+||| `Extract.idr` prints `encode frameParse`; the gate checks its canonical
+||| bytes against both committed contract faces.
 |||
 ||| Discipline (checked by CI gate F0.1; see docs/spec/ATOMA-SPEC.adoc):
 |||   %default total      — every definition must be total
@@ -16,10 +16,8 @@
 |||                        are listed in docs/spec/ATOMA-SPEC.adoc §2 and are
 |||                        scanned for by the proof-circumvention gate)
 |||
-||| STATUS: this module has NOT been typechecked in the authoring environment
-||| (the Idris2 toolchain is absent there). It is normative text, and
-||| `idris2 --typecheck abi/FrameAbi.ipkg` is the Phase 0 entry gate (F0.1).
-||| Nothing in this repository claims it compiles until that gate runs.
+||| Gate F0.1 runs `idris2 --typecheck FrameAbi.ipkg` from this directory.
+||| This is a checked specification/model, not an executable foreign binding.
 |||
 ||| Naming: the toolchain is Atoma; the language it verifies is Zig. The C
 ||| symbol prefix, the contract namespace and the digest domains all use
@@ -53,10 +51,10 @@ renderQty QW = "W"
 public export
 data Sort
   = U8 | U16 | U32 | U64
-  | Handle          -- an opaque capability token, QTT-quantified
+  | HandleSort      -- an opaque capability token, QTT-quantified
   | SliceU8         -- (ptr, len) pair, ghost length, borrowed region
   | PtrOutFrame     -- a linear write lease into caller-owned memory
-  | Unit
+  | UnitSort
 
 public export
 renderSort : Sort -> String
@@ -64,10 +62,10 @@ renderSort U8 = "u8"
 renderSort U16 = "u16"
 renderSort U32 = "u32"
 renderSort U64 = "u64"
-renderSort Handle = "handle"
+renderSort HandleSort = "handle"
 renderSort SliceU8 = "slice ro u8 r0"
 renderSort PtrOutFrame = "ptr out_frame r1"
-renderSort Unit = "unit"
+renderSort UnitSort = "unit"
 
 --------------------------------------------------------------------------------
 -- Terms and formulas.
@@ -89,7 +87,6 @@ data Tm
   | TagOf String      -- tag(p): the capability tag of a handle
   | MagicOf String    -- magic(p): the magic field of an output struct
   | PayloadLen String
-  | Zeroed String     -- zeroed(p): every byte of *p is 0x00
   | PadOf String      -- pad(p): every padding byte of *p is 0x00
   | Add Tm Tm | Sub Tm Tm | Mul Tm Tm
 
@@ -98,6 +95,7 @@ data Fm
   = Le Tm Tm | Lt Tm Tm | Eq Tm Tm | Neq Tm Tm
   | And Fm Fm | Or Fm Fm | Imp Fm Fm | Not Fm
   | Forall Sort Fm
+  | Zeroed String     -- predicate: every byte of *p is 0x00
 
 --------------------------------------------------------------------------------
 -- Rendering. Total, structural, and emitting the canonical form directly:
@@ -114,7 +112,6 @@ renderTm (Len s) = "( len " ++ s ++ " )"
 renderTm (TagOf s) = "( tag " ++ s ++ " )"
 renderTm (MagicOf s) = "( magic " ++ s ++ " )"
 renderTm (PayloadLen s) = "( payload_len " ++ s ++ " )"
-renderTm (Zeroed s) = "( zeroed " ++ s ++ " )"
 renderTm (PadOf s) = "( pad " ++ s ++ " )"
 renderTm (Add a b) = "( + " ++ renderTm a ++ " " ++ renderTm b ++ " )"
 renderTm (Sub a b) = "( - " ++ renderTm a ++ " " ++ renderTm b ++ " )"
@@ -131,6 +128,7 @@ renderFm (Or a b) = "( or " ++ renderFm a ++ " " ++ renderFm b ++ " )"
 renderFm (Imp a b) = "( => " ++ renderFm a ++ " " ++ renderFm b ++ " )"
 renderFm (Not a) = "( not " ++ renderFm a ++ " )"
 renderFm (Forall s f) = "( forall ( %0 : " ++ renderSort s ++ " ) " ++ renderFm f ++ " )"
+renderFm (Zeroed s) = "( zeroed " ++ s ++ " )"
 
 --------------------------------------------------------------------------------
 -- Contract structure
@@ -196,8 +194,8 @@ encode c =
           "abisym " ++ c.abiSym]
          ++ mapRender renderParam c.params
          ++ mapRender renderBorrow c.borrows
-         ++ mapRender renderFm c.requires
-         ++ mapRender renderFm c.ensures
+         ++ mapRender (\f => "requires " ++ renderFm f) c.requires
+         ++ mapRender (\f => "ensures " ++ renderFm f) c.ensures
          ++ mapRender (\s => "assigns " ++ s) c.assigns
          ++ mapRender (\s => "cap " ++ s) c.caps
          ++ ["bound steps " ++ renderTm (steps c.bounds),
@@ -227,7 +225,7 @@ frameParse =
     , kind = "extern"
     , abiSym = "atoma_frame_parse"
     , params =
-        [ MkParam "h"         QW Handle
+        [ MkParam "h"         QW HandleSort
         , MkParam "input"     QW SliceU8
         , MkParam "input_len" Q0 U32
         , MkParam "out"       Q1 PtrOutFrame
@@ -250,7 +248,7 @@ frameParse =
         ]
     , assigns = ["r1"]
     , caps = ["Read r0", "Write r1"]
-    , bounds = MkBounds (Add (Num 12) (Mul (Num 8) (Len "input"))) 64
+    , bounds = MkBounds (Add (Num 12) (Mul (Num 8) (Var "input_len"))) 64
     }
 
 --------------------------------------------------------------------------------
@@ -273,8 +271,8 @@ record Field where
   align  : Nat
 
 public export
-data Aligned : (off, align : Nat) -> Type where
-  MkAligned : (k : Nat) -> (0 prf : off = k * align) -> Aligned off align
+data Aligned : (off, alignment : Nat) -> Type where
+  MkAligned : (k : Nat) -> (0 prf : off = k * alignment) -> Aligned off alignment
 
 public export
 endOf : List Field -> Nat
@@ -331,9 +329,9 @@ public export
 reservedAligned : Aligned 12 2
 reservedAligned = MkAligned 6 Refl
 
-||| The struct ends exactly at 16 bytes: no trailing slack, no field past 16.
+||| The last field ends at byte 14; the witnessed C layout has two tail bytes.
 public export
-headerEndsAt : So (endOf frameHeaderFields == 16)
+headerEndsAt : So (endOf FrameAbi.frameHeaderFields == 14)
 headerEndsAt = Oh
 
 ||| The struct size is a multiple of its alignment (required by the C ABI).
@@ -342,36 +340,28 @@ headerSizeAligned : Aligned 16 4
 headerSizeAligned = MkAligned 4 Refl
 
 --------------------------------------------------------------------------------
--- The seam. These are the only foreign imports in the module, and each is
--- pinned to a symbol that exists in src/frame_parse.zig.
+-- A QTT resource model. These constructors are not FFI types. An executable
+-- binding needs the actual four C arguments, native pointers and Result ABI;
+-- it must not pretend a Bits64 token or an Either is that ABI.
 --------------------------------------------------------------------------------
 
 public export
 data Handle : Type where
   MkHandle : (ptr : Bits64) -> (0 nonNull : So (ptr /= 0)) -> Handle
 
-||| Parse one frame. Linear in the handle and in the output lease: the QTT
-||| quantities mean an implementation that forgets to consume either is a
-||| type error, not a runtime leak.
 public export
-parseFrame :
-      (1 h : Handle)
-   -> (0 ghostLen : Nat)      -- the length proof, erased
-   -> (1 out : PtrOutFrame)
-   -> (IO (Either Bits32 ()))
-parseFrame h ghostLen out = prim__parse h out
+data OutLease : Type where
+  MkOutLease : (ptr : Bits64) -> (0 nonNull : So (ptr /= 0)) -> OutLease
 
-%foreign "C:atoma_frame_parse,libatoma"
-prim__parse : Handle -> PtrOutFrame -> IO (Either Bits32 ())
+||| Consumes each model resource once; no claim about a Zig call or allocation.
+public export
+consumeModel : (1 h : Handle) -> (1 out : OutLease) -> ()
+consumeModel (MkHandle _ _) (MkOutLease _ _) = ()
 
 --------------------------------------------------------------------------------
 -- What the linearity buys
 --------------------------------------------------------------------------------
 --
 -- The QTT discipline is supposed to reject (a) a handle that is dropped and
--- (b) a handle that is used twice. Both negative tests live in `Linearity.idr`,
--- which is deliberately NOT a module of this package: the expected compiler
--- message has to be reconciled with the real Idris2 diagnostic before the test
--- can be gated, and a `failing` block whose message does not match is itself a
--- compile error. Keeping it out of the package means gate F0.1 stays green
--- while the negative tests remain visible and runnable by hand.
+-- (b) a handle that is used twice. `Linearity.idr` gates both compiler
+-- rejections. This is model-level linearity, not a proof of the Zig lifecycle.

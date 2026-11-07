@@ -1,0 +1,37 @@
+= Atoma CI toolchain and bounded provisioning deviation
+:revdate: 2026-11-07
+
+The preferred estate route is a pinned Guix/container closure. Atoma's inherited
+provisioning does not currently provide its proof stack. To make this repair
+executable, CI uses `scripts/atoma-ci-toolchain.sh` on Ubuntu 24.04 with the
+following explicit, scoped deviation. This does not certify reproducibility of
+the entire transitive system environment.
+
+[cols="1,3,3",options="header"]
+|===
+| Tool | CI input | Integrity / local comparison
+| Zig | 0.15.2 official x86_64 Linux archive | SHA-256 pinned in installer; same version locally
+| Z3 | 4.13.3 official x86_64 glibc 2.35 archive | SHA-256 pinned in installer; local Debian 4.13.3-1 also exercised
+| Idris2 | v0.8.0 commit `15a3e4e70843f7a34100f6470c04b791330788df`, Chez bootstrap | Exact fetched commit checked; local 0.8.0-b6cbc25d5 is a separate recorded profile
+| Agda | Ubuntu package `agda-bin=2.6.3-1build1` | apt authentication and exact package version; local Debian 2.6.4.3-1+b2 is a separate recorded profile
+| Actions | checkout v7.0.1, upload-artifact v7.0.2 | Immutable commits recorded by `gh actions-lock` in `actions.lock`; no credential persistence; read-only repository token
+|===
+
+Agda runs `--safe --without-K` and fresh interface checks in both profiles.
+These flags do not prove that a Dedukti/CIC export exists. CI must demonstrate
+the pinned release profile; a local pass on newer Idris/Agda is not substituted
+for that hosted result. Bootstrap/system packages and runner image are not a
+fully frozen closure. Network/provisioning failures are fatal, not skips.
+
+Each gate run records version strings, executable digests, source and gate
+digests, logs and the unchanged INCOMPLETE/Warrant class. For interpreter
+launchers the executable digest alone does not cover the whole installation;
+the pinned build source and provisioning log are additional provenance.
+
+Owner role: Atoma build maintainer. Scope: experimental Atoma CI only. Review
+at R1 and before any release claim; retire this deviation when a tested Guix
+closure or compliant pinned proof-tool image is available. Do not spread the
+installer into the sibling repositories as their default dependency policy.
+Canonical policy reference: `metadatastician/standards`,
+`3-practice/PROOF-POLICY.adoc` (audit baseline
+`fe57d352f0b1a50e5cb07b4aac2581caf355388e`).

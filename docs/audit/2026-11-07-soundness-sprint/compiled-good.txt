@@ -1,0 +1,2 @@
+1/1 compiled-witness.test.compiled pilot matches the contract for every u8 input...OK
+All 1 tests passed.

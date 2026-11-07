@@ -1,0 +1,23 @@
+cspec 1
+contract atoma.frame.parse
+kind extern
+abisym atoma_frame_parse
+param h W handle
+param input W slice ro u8 r0
+param input_len 0 u32
+param out 1 ptr out_frame r1
+borrow input shr r0
+borrow out mut r1
+requires ( <= 12 ( len input ) )
+requires ( = ( len input ) input_len )
+requires ( < input_len 4294967296 )
+requires ( or ( = h null ) ( = ( tag h ) 1096043825 ) )
+ensures ( => ( = res 0 ) ( = ( magic out ) 21569 ) )
+ensures ( => ( = res 0 ) ( <= ( payload_len out ) ( - ( len input ) 12 ) ) )
+ensures ( => ( != res 0 ) ( zeroed out ) )
+ensures ( = ( pad out ) 0 )
+assigns r1
+cap Read r0
+cap Write r1
+bound steps ( + 12 ( * 8 input_len ) )
+bound hwm 64

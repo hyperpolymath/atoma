@@ -1,0 +1,99 @@
+= What Atoma can transfer to the other language verifiers
+:revdate: 2026-11-07
+
+This is a design comparison, not an implementation audit of the three siblings.
+It reads their current implementation plans at the following snapshots:
+
+* https://github.com/hyperpolymath/quintessence/blob/68b7a4ccd035833e68b34f562c3fd965a2f389f6/docs/architecture/QUINTESSENCE-IMPLEMENTATION-PLAN.adoc[Quintessence / Elixir]
+* https://github.com/hyperpolymath/Apodeixis.jl/blob/a40d9853e2c95db03faf15375080d40c8803f1f7/docs/architecture/APODEIXIS-MVP-IMPLEMENTATION-PLAN.adoc[Apodeixis.jl / Julia]
+* https://github.com/hyperpolymath/bactrian/blob/d038e9b61c3209869eddab5d66c1a2b62041beac/docs/architecture/BACTRIAN-IMPLEMENTATION-PLAN.adoc[Bactrian / OCaml]
+
+== Meaningful common work
+
+All three plans refer to a Zig verification boundary, using the historical name
+ZigProve. Quintessence includes Zig NIFs, ABI checks and scheduling obligations;
+Apodeixis includes an Idris2/Zig ABI track; Bactrian includes implementation-hash
+binding at its Idris2/Zig boundary. Atoma therefore has a concrete downstream
+role in their native seams, provided it proves the constructs they actually use.
+A passing u8 pilot is not sufficient for their pointer/resource/NIF obligations.
+
+[cols="2,3,3",options="header"]
+|===
+| Capability | Transfer potential | Work still required per language
+| Evidence protocol, statuses and invalidation | High: shared distinctions for unsupported, counterexample, unknown, solver answer and kernel replay; one provenance/assumption vocabulary | Source/import/compiler identity and invalidation rules
+| ECHIDNA proof exchange and replay | High for obligations in supported common logics; a real checked proof adapter can unblock all consumers | Sound encoding of each language's semantics and theorem statements
+| Contract/VC core | Moderate: pure logical expressions, explicit integer models, source maps, modular obligations and shared proof libraries | Types, elaboration, effects, evaluation order, exceptions and semantic preservation
+| Atoma native seam proofs | Direct where siblings use admitted Zig code | Runtime/GC ownership, NIF lifecycle, scheduler interface and boundary composition
+| CI/test discipline | High: body-only mutants, missing/stale evidence, proof coverage and reproducible gates | Real language compilers, meaningful fixtures and aspect interaction paths
+| Whole-language soundness | Limited direct reuse | Each frontend-to-semantics connection must be established separately
+|===
+
+The large shared milestone is one source-derived, source-bound proof that
+survives real independent replay and adversarial invalidation. That makes a
+common assurance service reusable. It does not automatically verify a Julia
+dispatch decision, an Elixir mailbox or an OCaml effect handler.
+
+== Likely effect on development rate
+
+Current benefits are mainly avoided design mistakes, test patterns and a small
+native-seam experiment. Larger savings depend on delivering and reusing the
+proof/evidence infrastructure, not merely finishing this sprint.
+
+Use an explicit effort model rather than promising a multiplier. If a later
+project spends 25–40% of its effort on genuinely common infrastructure and
+50–75% of that work can be reused after integration, the total saving would be
+about 12–30%, or roughly 1.14–1.43 times the delivery rate at equal staffing.
+Those fractions are illustrative planning assumptions, not measured estimates
+of these repositories. A narrowly scoped Zig boundary could save much more;
+a new concurrent or dynamic language semantics could save much less. Learning
+also reduces rework and failed architecture bets, which this model omits.
+
+Measure the second implementation: time to a valid source-derived proof, time
+to reject the unchanged-contract/body mutant, adapter code added, semantic
+assumptions introduced and existing components reused unchanged. Re-estimate
+from those measurements before committing the third project's schedule.
+
+== Order of work
+
+Keep Atoma first through a credible source/proof/replay path. Do not wait for
+all Zig features or v1 before testing a sibling adapter.
+
+The proposed Zig → Elixir → Julia → OCaml order is coherent if Elixir services
+and their Zig NIF boundary are the immediate application priority. It is not
+a universal technical speed optimum. The Elixir plan includes actor protocols
+and scheduling obligations; those are substantial additional work. Its claimed
+implementation breadth has not been independently validated in this comparison.
+
+If the objective is to validate reusable *sequential deductive verification*,
+consider a small Bactrian pure-OCaml vertical slice before the full Elixir/Julia
+programmes. Its plan already separates a typed compiler adapter and Why3/SMT
+obligations. That could test the shared logical/VC interface without first
+taking on Julia's versioned `code_typed` adapter or the full actor layer.
+This is an architectural hypothesis, not evidence that Bactrian is currently
+more implemented or necessarily faster to finish.
+
+Julia's plan explicitly requires closed typed calls, compiler-versioned IR and
+later IEEE floating-point semantics. These do not disappear after a Zig memory
+proof or an Elixir protocol proof. OCaml's own actor/effect/runtime targets also
+need distinct treatment; “pure core first” is a scoped experiment.
+
+Recommended scheduling rule: Atoma vertical slice → second-language transfer
+spike → choose the next full project by application value and measured reuse.
+Two useful candidates are Quintessence's native seam and Bactrian's pure core.
+Run small experiments, not four simultaneous universal-verifier builds.
+
+== Decisions to carry forward
+
+. Compile normative contracts and execute their extractors; matching handwritten
+  faces is insufficient evidence.
+. Bind obligations to bodies and transitive dependencies. A contract-only hash
+  must not authorize implementation claims.
+. Keep model proofs, compiled tests, solver answers and kernel replay distinct.
+. Require gate falsifiers and missing/stale-tool failures before trusting green.
+. Specify memory/effects/runtime assumptions before expanding language support.
+. Share evidence/exchange interfaces first. Extract a common typed semantic
+  component only after two language adapters demonstrate its meaning.
+. Keep implementations and product identities separate; ECHIDNA owns dispatch,
+  each verifier owns its language boundary, Atoma owns the admitted Zig seam.
+
+No sibling files or schedules are changed by this Atoma sprint.

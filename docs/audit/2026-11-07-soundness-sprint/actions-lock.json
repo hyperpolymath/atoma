@@ -1,0 +1,38 @@
+{
+  "cli_version": "v0.4.1",
+  "findings": [
+    {
+      "workflow": "",
+      "category": "not-pinned",
+      "severity": "warning",
+      "confidence": "high",
+      "dependency": "hyperpolymath/cicd-suite@0da816c05ae7486671d863e07935f93981c0c2d5",
+      "required_by": "hyperpolymath/cicd-suite@55556cf5ba71ba744695861503c13148d3915a5d",
+      "detail": "lock entry for hyperpolymath/cicd-suite@0da816c05ae7486671d863e07935f93981c0c2d5, used by hyperpolymath/cicd-suite@55556cf5ba71ba744695861503c13148d3915a5d, records ref 0da816c05ae7, a commit SHA rather than the tag or branch it was taken from; the Actions backend rejects this pin",
+      "remediation": "run `gh actions-lock` without a path to repair it",
+      "doc_url": "https://github.com/github/gh-actions-lock/blob/main/docs/troubleshooting.md#not-pinned"
+    },
+    {
+      "workflow": ".github/workflows/main-estate-audit.yml",
+      "category": "not-pinned",
+      "severity": "warning",
+      "confidence": "high",
+      "dependency": "hyperpolymath/cicd-suite@55556cf5ba71ba744695861503c13148d3915a5d",
+      "detail": "lock entry for hyperpolymath/cicd-suite@55556cf5ba71ba744695861503c13148d3915a5d, in .github/workflows/main-estate-audit.yml, records ref 55556cf5ba71, a commit SHA rather than the tag or branch it was taken from; the Actions backend rejects this pin",
+      "remediation": "run `gh actions-lock` without a path to repair it",
+      "doc_url": "https://github.com/github/gh-actions-lock/blob/main/docs/troubleshooting.md#not-pinned"
+    },
+    {
+      "workflow": ".github/workflows/dogfood-gate.yml",
+      "category": "not-pinned",
+      "severity": "warning",
+      "confidence": "high",
+      "dependency": "hyperpolymath/standards@b3ce78e1a8cb24b33fde5c9da6a7c09486efda78",
+      "detail": "lock entry for hyperpolymath/standards@b3ce78e1a8cb24b33fde5c9da6a7c09486efda78, in .github/workflows/dogfood-gate.yml, records ref b3ce78e1a8cb, a commit SHA rather than the tag or branch it was taken from; the Actions backend rejects this pin",
+      "remediation": "run `gh actions-lock` without a path to repair it",
+      "doc_url": "https://github.com/github/gh-actions-lock/blob/main/docs/troubleshooting.md#not-pinned"
+    }
+  ],
+  "lockfile_version": "v0.0.3",
+  "valid": true
+}

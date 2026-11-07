@@ -1,9 +1,21 @@
 // SPDX-License-Identifier: CC-BY-SA-4.0
 // Copyright (c) Jonathan D.A. Jewell <j.d.a.jewell@open.ac.uk>
 // SPDX-FileCopyrightText: 2024-2026 Jonathan D.A. Jewell (hyperpolymath)
-= {{PROJECT_NAME}}
+= Atoma — experimental verification for Zig
 :toc:
 :toc-placement: preamble
+
+Atoma currently provides canonical contracts, a syntax screen, checked Idris2
+specifications, Agda proofs of a store-free model and a tiny source-bound u8
+verification experiment. It is not yet a general sound verifier for Zig.
+Evidence remains *INCOMPLETE (Warrant)*; kernel replay and program refinement
+are open work. Run `bash scripts/atoma-gate.sh` with the documented toolchain.
+
+Start with link:docs/plan/ULTRAPLAN.adoc[the v1 plan],
+link:docs/decisions/ATOMA-SOURCE-TO-PROOF.adoc[the source-to-proof decision] and
+link:docs/decisions/ATOMA-TOOLCHAIN.adoc[the toolchain profile]. The template
+badges and scaffold material below are inherited, not evidence of Atoma's
+standards certification or production readiness; A1 identity minting remains.
 
 // ── Licensing ───────────────────────────────────────────────────────────────
 image:https://img.shields.io/badge/Code-MPL--2.0-blue.svg?logo=mozilla[Code licence: MPL-2.0,link="https://opensource.org/licenses/MPL-2.0"]

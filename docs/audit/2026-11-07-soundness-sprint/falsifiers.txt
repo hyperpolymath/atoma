@@ -1,0 +1,6 @@
+falsifier PASS missing ZIG rejected
+falsifier PASS missing Z3 rejected
+falsifier PASS missing AGDA rejected
+falsifier PASS missing IDRIS2 rejected
+falsifier PASS stale executable cannot bypass current-source build
+falsifier PASS solver stdout cannot hide a failed process

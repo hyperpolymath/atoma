@@ -2,3 +2,7 @@
 # Format: <source-root>|<module-relative-to-source-root>|gated|quarantine|<note>
 # Ground-truthed 2026-07-17 with agda (agda --safe).
 verification/proofs/agda|Properties.agda|gated| compiles under `agda --safe`
+verification/atoma/agda|Bv.agda|gated| Atoma finite arithmetic model; safe without-K
+verification/atoma/agda|Lin.agda|gated| Atoma resource model; safe without-K
+verification/atoma/agda|Core.agda|gated| Atoma store-free core; safe without-K
+verification/atoma/agda|Soundness.agda|gated| Atoma store-free theorem; not Zig refinement

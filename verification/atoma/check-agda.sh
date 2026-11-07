@@ -8,8 +8,8 @@
 #
 # `--safe` rejects postulates, `{-# TERMINATING #-}`, `{-# NON_TERMINATING #-}`,
 # `{-# REWRITE #-}`, cubical primitives and `primTrustMe`. `--without-K` rejects
-# the K axiom. Together they are the Dedukti-CIC subset the specification
-# requires for witness export (§6.5).
+# the K axiom. These flags do not establish that an exporter to Dedukti/CIC
+# exists or preserves the theorem; that is a separate, currently open obligation.
 #
 # Exits 0 only if every module checks. Prints one line per module.
 
@@ -18,13 +18,21 @@ here=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 AGDA=${AGDA:-agda}
 
 cd "$here/agda"
+command -v "$AGDA" >/dev/null 2>&1 || { echo "FAIL missing Agda: $AGDA" >&2; exit 1; }
+# Check sources, even if a previous run left interface files behind.
+rm -f ./*.agdai
+trap 'rm -f ./*.agdai' EXIT
 
-for m in Bv Lin Core Soundness; do
-    if "$AGDA" --safe --without-K "$m.agda" >/dev/null 2>&1; then
+modules=$(awk -F '|' '$1 == "verification/atoma/agda" && $3 == "gated" {print $2}' "$here/../proofs/agda/MANIFEST")
+[ -n "$modules" ] || { echo 'FAIL no registered Atoma Agda modules' >&2; exit 1; }
+count=0
+for m in $modules; do
+    count=$((count + 1))
+    if "$AGDA" --safe --without-K "$m" >/dev/null 2>&1; then
         printf 'agda ok   %s\n' "$m"
     else
         printf 'agda FAIL %s\n' "$m" >&2
-        "$AGDA" --safe --without-K "$m.agda" 2>&1 | sed -n '2,12p' >&2
+        "$AGDA" --safe --without-K "$m" 2>&1 | sed -n '2,12p' >&2
         exit 1
     fi
 done
@@ -40,4 +48,4 @@ fi
 # The interface files are build artefacts; a stale one can mask a broken module.
 rm -f ./*.agdai
 
-printf 'agda: 4 modules, 0 postulates, 0 holes\n'
+printf 'agda: %s registered modules, 0 postulates, 0 holes\n' "$count"

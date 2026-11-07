@@ -1,0 +1,79 @@
+= Atoma soundness repair: evidence and limits
+:revdate: 2026-11-07
+
+Baseline: `8d7898572285c2abe9fe0f3dfd3e892ec1a211f2` (main, 22 October).
+This report describes the repair working tree and its reproducible gates.
+The PR's hosted CI artifact binds the exact tested commit; local evidence
+does not replace that run. Evidence files below live beside this report in
+`2026-11-07-soundness-sprint/`.
+
+== Reproduced failures and repairs
+
+[cols="2,3,3",options="header"]
+|===
+| Finding | Baseline evidence | Repair / regression
+| Output error contract violated | `before-contract-probes.log`: null handle and truncated iterator both leave 0xa5 bytes in a valid output | Resolve the writable output first and clear it before wrapper errors. Two permanent tests also check bad tag/input, null output and unchanged iterator state.
+| Normative contract did not compile | `before-idris.log`: formula/type confusion, names colliding with builtin/type constructors, false layout extent and invalid FFI declaration | Typecheck contract/QTT model; distinguish predicates/sorts; prove extent 14, witness size 16; remove unsupported foreign binding rather than pretend it has the C ABI.
+| Face A was handwritten | Contract encoder lacked requires/ensures prefixes and used a different bound expression | Compile/run `Extract.idr` in a fresh directory and check canonical equality. Both existing face hashes are preserved.
+| Recursion passed the screen | `before-recursion.log`: the direct recursive export returned success | File-local reference graph rejects visible direct/mutual cycles; tests include an alias and an acyclic control. General semantic subset admission remains open.
+| Source and proof were disconnected | Legacy VCs depend on selected contract facts, not the body | Closed u8 source pilot emits body-derived QF_BV and exhaustively checks its typed model. Compiled fixture also tested on all 256 inputs; body-only mutant fails.
+| Stale or absent tooling could reassure | Existing executable reused; missing proof tools permitted not-run; solver output piped through tail | Mandatory tools, unconditional rebuild, full solver verdict plus process status, timeout and executable gate falsifiers.
+| Proofs invisible to estate registry | Four Atoma Agda modules outside original scan | Register Atoma Agda/Idris files, widen owned-directory coverage, and require scoped coverage in CI.
+| Plan understated critical path | Kernel replay treated as the main route to readiness | Explicit source-to-semantics and replay paths, v1 release gates, phased estimates, aspect interactions and sibling-transfer decision.
+|===
+
+== Observed local validation
+
+Commands: `bash scripts/atoma-gate.sh`, `zig build test` from `tools/atoma`,
+`git diff --check`, and the scoped `gh actions-lock` verification. Native
+Linux scratch space was used for compilation because Windows-mounted Zig
+cache renames had failed during reconnaissance.
+
+[cols="3,2",options="header"]
+|===
+| Check | Observed result
+| Zig tool unit tests (canon/frontend/legacy VC/source pilot) | 24 passed
+| Frame example tests | 13 passed
+| Idris2 specification, extractor and QTT negative blocks | Fresh package typecheck and executable extraction passed
+| Four cross-compilation targets / layout | x86_64, aarch64, riscv64, wasm32; 60 rows
+| Contract equivalence | Existing canonical contract/seam digests preserved
+| Legacy frame-model SMT corpus | Expected 8 unsat / 6 sat; no implementation-proof claim
+| Agda model | Four modules passed safe/without-K
+| Estate proof entrypoints | Agda: all 5 registered files accounted for and checked. Idris2: 9 accounted for; gated files pass and four documented ABI quarantines still fail. Stale `Types.idr` quarantine promoted after successful check.
+| Source-generated obligation | Good body unsat; same contract with wrong body sat
+| Finite source-model check | All 256 inputs accepted for good body; wrong body rejected with concrete counterexample
+| Compiled execution witness | Good executable passes all 256 inputs; wrong executable fails
+| Gate falsifiers | Missing Zig/Z3/Agda/Idris2, stale executable and failed solver process all rejected
+| Actions lock | Scoped generation/verification passed; action versions pinned by immutable lock entries
+| Receipt | INCOMPLETE / Warrant, unchanged claim class
+|===
+
+Local profile: Zig 0.15.2, Z3 4.13.3, Agda 2.6.4.3 and Idris2
+0.8.0-b6cbc25d5. CI uses the separate pinned release profile documented in
+`../decisions/ATOMA-TOOLCHAIN.adoc`. Tool version/digest records and detailed
+logs are emitted into `build/atoma-evidence/`; hosted artifacts retain them for
+30 days. Selected local evidence is committed here; `inputs.sha256` records
+the tested working-tree inputs, not a claim that every later documentation
+edit was present in that run.
+
+== Review boundaries and remaining work
+
+* No Zig-to-Agda refinement theorem, checked general VC generator, general
+  alias/loop/call model or Dedukti/Coq/Lean4 replay was added.
+* The u8 experiment is a deliberately tiny, exhaustively checkable language;
+  its parser, lowering, emitter, evaluator and compiler remain trusted.
+  Passing the general token screen still proves no semantic subset membership.
+* The frame repair assumes a valid writable output lease disjoint from input,
+  handle and iterator. It checks null pointers, not arbitrary pointer validity.
+* This PR does not mint the inherited deed, edit licences, fix all template
+  workflows, certify standards compliance or publish a release.
+* CI bootstrap dependencies are not a fully reproducible Guix closure. The
+  bounded deviation must be retired or reviewed before release.
+* Sibling plans were compared for reuse opportunities; their engines were not
+  audited or modified. See `../decisions/ATOMA-SIBLING-TRANSFER.adoc`.
+
+== Hosted validation
+
+Pending PR execution at preparation time. The PR description and final update
+must identify the actual Atoma workflow result, required-check enforcement and
+any unrelated failing estate checks; never infer a pass from the local run.

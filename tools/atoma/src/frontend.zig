@@ -365,6 +365,50 @@ pub const CheckOptions = struct {
     require_contracts: bool = true,
 };
 
+// Conservative, file-local recursion screen. References to a locally declared
+// function create edges even when passed as values. This does not resolve
+// imports, aliases or dynamic dispatch; a clean screen is not a proof of subset
+// membership. The source pilot separately rejects every call and import.
+fn scanRecursion(alloc: Allocator, ast: Ast, decls: []const Decl, report: *Report) !void {
+    var fns: std.ArrayListUnmanaged(Decl) = .empty;
+    defer fns.deinit(alloc);
+    for (decls) |d| if (d.kind == .fn_decl) {
+        try fns.append(alloc, d);
+    };
+    const n = fns.items.len;
+    if (n > 256) {
+        try report.add(alloc, "E-ANALYSIS-LIMIT", 0, "local call graph exceeds 256 functions");
+        return;
+    }
+    const reach = try alloc.alloc(bool, n * n);
+    defer alloc.free(reach);
+    @memset(reach, false);
+    const tags = ast.tokens.items(.tag);
+    for (fns.items, 0..) |d, from| {
+        var t = d.token;
+        while (t < tags.len and tags[t] != .l_brace and tags[t] != .semicolon) : (t += 1) {}
+        if (t == tags.len or tags[t] == .semicolon) continue;
+        var depth: usize = 1;
+        t += 1;
+        while (t < tags.len and depth != 0) : (t += 1) {
+            if (tags[t] == .l_brace) depth += 1;
+            if (tags[t] == .r_brace) depth -= 1;
+            if (tags[t] == .identifier) {
+                for (fns.items, 0..) |target, to| {
+                    if (eql(ast.tokenSlice(t), target.name)) reach[from * n + to] = true;
+                }
+            }
+        }
+    }
+    for (0..n) |k| for (0..n) |i| {
+        for (0..n) |j| reach[i * n + j] = reach[i * n + j] or
+            (reach[i * n + k] and reach[k * n + j]);
+    };
+    for (fns.items, 0..) |d, i| {
+        if (reach[i * n + i]) try report.add(alloc, "E-RECURSION-UNSUPPORTED", d.line, d.name);
+    }
+}
+
 pub fn check(alloc: Allocator, src: []const u8, opts: CheckOptions) !Report {
     var report = Report{};
     const srcz = try alloc.dupeZ(u8, src);
@@ -384,6 +428,7 @@ pub fn check(alloc: Allocator, src: []const u8, opts: CheckOptions) !Report {
     try scanBanned(alloc, ast, src, &report);
     try scanAbiTypes(alloc, ast, src, &report);
     try scanCallconv(alloc, ast, decls.items, &report);
+    try scanRecursion(alloc, ast, decls.items, &report);
 
     // Contract ↔ export linkage, both directions.
     var contracted = std.StringHashMapUnmanaged(void){};
@@ -659,4 +704,20 @@ test "check rejects usize inside an extern struct" {
     var r = try check(a, "pub const S = extern struct { n: usize };\n", .{ .require_contracts = false });
     defer r.deinit(a);
     try testing.expectEqualStrings("E-ABI-WIDTH", r.diags.items[0].code);
+}
+
+test "direct and mutual local recursion are refused without a termination model" {
+    for ([_][]const u8{
+        "fn f(x: u32) u32 { return f(x); }",
+        "fn f(x: u32) u32 { return g(x); } fn g(x: u32) u32 { return f(x); }",
+        "fn f(x: u32) u32 { const alias = f; return alias(x); }",
+    }) |src| {
+        var r = try check(testing.allocator, src, .{ .require_contracts = false });
+        defer r.deinit(testing.allocator);
+        try testing.expect(r.diags.items.len > 0);
+        for (r.diags.items) |d| try testing.expectEqualStrings("E-RECURSION-UNSUPPORTED", d.code);
+    }
+    var r = try check(testing.allocator, "fn f(x: u32) u32 { return g(x); } fn g(x: u32) u32 { return x; }", .{ .require_contracts = false });
+    defer r.deinit(testing.allocator);
+    try testing.expectEqual(@as(usize, 0), r.diags.items.len);
 }

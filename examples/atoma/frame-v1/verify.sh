@@ -5,8 +5,8 @@
 # verify.sh — the Phase 0 ("Layout & Signature Lock") gate for frame-v1.
 #
 # What this gate DOES establish (machine-checked, here and now):
-#   G1  the example implementation is within the Atoma subset: it compiles and
-#       its 11 unit tests pass on the pinned compiler;
+#   G1  the example implementation compiles and its unit tests pass on the
+#       pinned compiler; this is not semantic subset admission;
 #   G2  it compiles for all four ABI target classes (x86_64 · aarch64 · riscv64
 #       · wasm32);
 #   G3  every declared size / alignment / offset / padding range is confirmed by
@@ -14,7 +14,7 @@
 #   G4  the `usize`-across-FFI counter-example is *rejected* on wasm32 (F0.3);
 #   G5  Face A and Face B canonicalise to the same bytes (hash-checked seam);
 #   G6  all 11 specification-mutation operators produce distinct artifacts;
-#   G7  the 14 SMT verification conditions are discharged (if z3 is present),
+#   G7  the 14 hand-authored model queries have their expected solver verdicts,
 #       and the generator refuses to emit queries for a drifted contract;
 #   G8  the Face B contract is *extracted* from the Zig source and matches the
 #       checked-in file — the doc-comment directives are the source of truth;
@@ -22,8 +22,8 @@
 #       every `export fn` contracted;
 #   G10 the negative corpus is rejected, with one diagnostic per banned
 #       construct (the checker is not vacuous);
-#   G11 the Agda metatheory typechecks under `--safe --without-K` (if agda is
-#       present) — the soundness theorem of spec §6.3 is machine-checked for the
+#   G11 the Agda metatheory typechecks under `--safe --without-K` —
+#       the soundness theorem of spec §6.3 is machine-checked for the
 #       store-free core fragment, not asserted.
 #
 # What this gate does NOT establish — and must never be read as establishing:
@@ -36,13 +36,16 @@
 # Because of that the receipt this script writes is stamped
 # `INCOMPLETE (Warrant)`, never `COMPLETE (Receipt)` (spec §1, §7.4).
 #
-# Exit status is 0 only if every gate that can run in this environment passes.
-# G7 and G11 are skip-to-not-run: absence of a tool is reported, never assumed
-# away, and never counted as a pass.
+# Exit status is 0 only if all Phase 0 gates pass. Missing tools fail before
+# any receipt is written. Success still does not establish program refinement.
 
 set -eu
 
 ZIG=${ZIG:-zig}
+Z3=${Z3:-z3}
+AGDA=${AGDA:-agda}
+IDRIS2=${IDRIS2:-idris2}
+export ZIG Z3 AGDA IDRIS2
 here=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 root=$(CDPATH= cd -- "$here/../../.." && pwd)
 ADDR="$root/tools/atoma/zig-out/bin/atoma"
@@ -52,22 +55,35 @@ die() {
     exit 1
 }
 
-[ -x "$ADDR" ] || (cd "$root/tools/atoma" && "$ZIG" build >/dev/null) || die "cannot build atoma"
+for tool in "$ZIG" "$Z3" "$AGDA" "$IDRIS2"; do
+    command -v "$tool" >/dev/null 2>&1 || die "missing required tool: $tool"
+done
+# Always rebuild: an executable left by another source revision is not evidence.
+(cd "$root/tools/atoma" && "$ZIG" build) || die "cannot build current atoma"
+bash "$root/scripts/atoma-check-idris.sh" || die "F0.1 Idris2 contract/extraction"
 
 # Count the tool's own tests instead of hard-coding a number that can drift.
 atoma_tests=0
-for m in canon frontend vc; do
-    n=$("$ZIG" test "$root/tools/atoma/src/$m.zig" 2>&1 |
-        sed -n 's/^All \([0-9][0-9]*\) tests passed\.$/\1/p')
+test_log=$(mktemp)
+trap 'rm -f "$test_log"' EXIT
+for m in canon frontend vc source; do
+    "$ZIG" test "$root/tools/atoma/src/$m.zig" > "$test_log" 2>&1 || {
+        cat "$test_log" >&2; die "unit tests in $m.zig"
+    }
+    n=$(sed -n 's/^All \([0-9][0-9]*\) tests passed\.$/\1/p' "$test_log")
     [ -n "$n" ] || die "cannot count the tests in $m.zig"
     atoma_tests=$((atoma_tests + n))
 done
-printf 'atoma %s tests (canon + frontend + vc)\n' "$atoma_tests"
+printf 'atoma %s tests (canon + frontend + vc + source)\n' "$atoma_tests"
 
 cd "$here"
 
 # ── G1: subset conformance + unit tests ─────────────────────────────────────
-"$ZIG" test src/frame_parse.zig >/dev/null 2>&1 || die "G1 unit tests"
+frame_log=$(mktemp)
+trap 'rm -f "$test_log" "$frame_log"' EXIT
+"$ZIG" test src/frame_parse.zig >"$frame_log" 2>&1 || { cat "$frame_log" >&2; die "G1 unit tests"; }
+frame_tests=$(sed -n 's/^All \([0-9][0-9]*\) tests passed\.$/\1/p' "$frame_log")
+[ -n "$frame_tests" ] || die "G1 cannot count frame tests"
 printf 'G1 ok  unit tests (frame_parse)\n'
 
 # ── G2: four target classes ─────────────────────────────────────────────────
@@ -130,7 +146,7 @@ rm -f spec/.mutant.cspec spec/.probe.cspec spec/.face-a.full.cspec spec/.face-b.
 printf 'G6 ok  mutation sweep: %s applied, %s distinct artifacts\n' "$applied" "$distinct"
 
 # ── G7: SMT verification conditions ─────────────────────────────────────────
-# Optional: needs z3. The queries are emitted by `atoma vc`, which is *untrusted
+# Required: z3. The queries are emitted by `atoma vc`, which is *untrusted
 # plumbing* (tools/atoma/src/vc.zig): the gate does not believe the generator,
 # it runs the solver and compares the verdict with the reviewed expectation
 # table. Verdicts are read from stdout — z3 exits 0 for both sat and unsat — and
@@ -173,7 +189,7 @@ if command -v "$Z3" >/dev/null 2>&1; then
     while IFS="$tab" read -r name want; do
         case "$name" in '#'*|'') continue ;; esac
         [ -f "vc/.gen/$name.smt2" ] || die "G7 expected VC $name is missing from the generator"
-        got=$("$Z3" -smt2 "vc/.gen/$name.smt2" 2>&1 | tail -n 1)
+        got=$("$Z3" -T:15 -smt2 "vc/.gen/$name.smt2" 2>&1) || die "G7 solver process failed: $name"
         [ "$got" = "$want" ] || die "G7 $name: expected $want, z3 said $got"
         printf '    %-32s %s\n' "$name" "$got" >> witness/vc-report.txt
         vc_count=$((vc_count + 1))
@@ -192,7 +208,7 @@ if command -v "$Z3" >/dev/null 2>&1; then
     printf 'G7 ok  %s VCs discharged by z3: %s unsat, %s sat (%s)\n' \
         "$vc_count" "$saw_unsat" "$saw_sat" "$vc_hash"
 else
-    printf 'G7 --  z3 not installed: SMT obligations not discharged\n'
+    die "G7 required z3 became unavailable"
 fi
 
 # ── G8: extraction reproduces the checked-in Face B ─────────────────────────
@@ -209,7 +225,7 @@ if ! "$ADDR" check src/frame_parse.zig > witness/subset-report.txt 2>&1; then
     die "G9 subset violations in src/frame_parse.zig"
 fi
 grep -q '6 contracts' witness/subset-report.txt || die "G9 expected 6 contracts in frame_parse.zig"
-printf 'G9 ok  subset clean: 6 exports, 6 contracts, 0 diagnostics\n'
+printf 'G9 ok  syntax screen: 6 exports, 6 contracts, 0 diagnostics\n'
 
 # ── G10: the negative corpus must be rejected ───────────────────────────────
 if "$ADDR" check fixtures/violations.zig > witness/violations-report.txt 2>&1; then
@@ -220,15 +236,20 @@ diags=$(sed -n 's/.*: \(E-[A-Z-]*\):.*/\1/p' witness/violations-report.txt | wc 
 [ "$codes" -ge 15 ] || die "G10 only $codes distinct diagnostic codes (want >= 15)"
 [ "$diags" -ge 20 ] || die "G10 only $diags diagnostics (want >= 20)"
 printf 'G10 ok negative corpus rejected: %s diagnostics, %s distinct codes\n' "$diags" "$codes"
+if "$ADDR" check fixtures/recursion.zig > witness/recursion-report.txt 2>&1; then
+    die "G10 accepted local mutual recursion"
+fi
+grep -q 'E-RECURSION-UNSUPPORTED' witness/recursion-report.txt || die "G10 wrong recursion rejection"
 
 # ── G11: the Agda metatheory ────────────────────────────────────────────────
-# Optional: needs agda. `--safe` turns postulates, termination pragmas, rewrite
+# Required: agda. `--safe` turns postulates, termination pragmas, rewrite
 # rules, `primTrustMe` and cubical primitives into compile errors, so a green
 # run is evidence that the proof is total and axiom-free. It is evidence about
 # the model in `Core.agda`; the refinement obligation to Zig is NOT proved and
 # is listed as a non-claim in the specification.
 proof_state="not-run"
 proof_hash="none"
+proof_modules=0
 AGDA=${AGDA:-agda}
 if command -v "$AGDA" >/dev/null 2>&1; then
     AGDA="$AGDA" "$root/verification/atoma/check-agda.sh" > witness/agda-report.txt 2>&1 || {
@@ -237,15 +258,17 @@ if command -v "$AGDA" >/dev/null 2>&1; then
     }
     # Ordered digest over the four module sources: order matters because
     # Soundness imports Core imports Bv, so a permuted set is a different proof.
+    modules=$(awk -F '|' '$1 == "verification/atoma/agda" && $3 == "gated" {print $2}' "$root/verification/proofs/agda/MANIFEST")
+    proof_modules=$(printf '%s\n' "$modules" | wc -l | tr -d ' ')
     proof_hash=$(
-        for m in Bv Lin Core Soundness; do
-            "$ADDR" src-hash "$root/verification/atoma/agda/$m.agda"
+        for m in $modules; do
+            "$ADDR" src-hash "$root/verification/atoma/agda/$m"
         done | "$ADDR" src-hash /dev/stdin
     )
     proof_state="checked"
-    printf 'G11 ok  metatheory typechecks: 4 modules, 0 postulates (%s)\n' "$proof_hash"
+    printf 'G11 ok  metatheory typechecks: %s modules, 0 postulates (%s)\n' "$proof_modules" "$proof_hash"
 else
-    printf 'G11 --  agda not installed: metatheory not typechecked\n'
+    die "G11 required agda became unavailable"
 fi
 
 # ── receipt ─────────────────────────────────────────────────────────────────
@@ -257,13 +280,13 @@ printf '%s' \
     "\"contract\":\"atoma.frame.parse\",\"equivalence\":\"EQUIVALENT\"," \
     "\"gate\":\"phase0\"," \
     "\"mutants\":{\"applied\":$applied,\"distinct\":$distinct}," \
-    "\"proof\":{\"modules\":4,\"srcset\":\"$proof_hash\",\"status\":\"$proof_state\"}," \
+    "\"proof\":{\"modules\":$proof_modules,\"srcset\":\"$proof_hash\",\"status\":\"$proof_state\"}," \
     "\"schema\":\"atoma.receipt.v1\"," \
     "\"smt\":{\"status\":\"$smt_state\",\"vcs\":$vc_count,\"vcset\":\"$vc_hash\"}," \
     "\"status\":\"INCOMPLETE\",\"status_class\":\"Warrant\"," \
-    "\"subset\":{\"contracts\":6,\"diagnostics_negative_corpus\":$diags,\"codes_negative_corpus\":$codes}," \
+    "\"subset\":{\"codes_negative_corpus\":$codes,\"contracts\":6,\"diagnostics_negative_corpus\":$diags}," \
     "\"targets\":[\"aarch64\",\"riscv64\",\"wasm32\",\"x86_64\"]," \
-    "\"tests\":{\"atoma\":$atoma_tests,\"frame_parse\":11}}" > "$receipt"
+    "\"tests\":{\"atoma\":$atoma_tests,\"frame_parse\":$frame_tests}}" > "$receipt"
 printf '\nreceipt: %s\n' "$receipt"
 cat "$receipt"
 printf '\n'

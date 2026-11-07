@@ -82,7 +82,7 @@ check_one() {
   case "$PROVER" in
     idris2) out="$(cd "$ROOT/$root" && idris2 --check "$rel" 2>&1)"; rc=$? ;;
     lean4)  out="$(cd "$ROOT/$root" && lean          "$rel" 2>&1)"; rc=$? ;;
-    agda)   out="$(cd "$ROOT/$root" && agda --safe    "$rel" 2>&1)"; rc=$? ;;
+    agda)   out="$(cd "$ROOT/$root" && agda --safe --without-K "$rel" 2>&1)"; rc=$? ;;
     coq)    out="$(cd "$ROOT/$root" && coqc           "$rel" 2>&1)"; rc=$? ;;
   esac
   set -e
@@ -157,7 +157,7 @@ done < "$MANIFEST_FILE"
 echo
 echo "=== manifest coverage ($PROOF_DIR) ==="
 listed="$(sort -u "$listed_tmp")"
-found="$(cd "$ROOT" && find "$PROOF_DIR" -name "*.$EXT" -not -path '*/build/*' 2>/dev/null | sort)"
+found="$(cd "$ROOT" && find "$PROOF_DIR" verification/atoma examples/atoma -name "*.$EXT" -not -path '*/build/*' 2>/dev/null | sort -u)"
 unlisted="$(comm -13 <(printf '%s\n' "$listed") <(printf '%s\n' "$found") || true)"
 missing="$(comm -23 <(printf '%s\n' "$listed") <(printf '%s\n' "$found") || true)"
 

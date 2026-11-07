@@ -1,0 +1,100 @@
+= Decision: connect admitted Zig source to explicit proof semantics
+:revdate: 2026-11-07
+
+Status: adopted for the experimental implementation in this PR; full refinement
+and release qualification remain open. This decision does not amend the
+specification's COMPLETE or trusted-generator requirements.
+
+== Problem and decision
+
+Contract equivalence, a sound abstract VC function and solver answers can all
+pass while the concrete implementation violates its contract. The frame audit
+demonstrated that failure: both wrapper errors and iterator truncation left
+poisoned output bytes, despite the existing checks passing. The normative
+Idris module also had not been compiled. Two agreeing transcriptions did not
+prove either implementation correctness or extractor correctness.
+
+Adopt a closed, typed, versioned source-to-IR boundary. Every accepted construct
+must have an explicit operational meaning, every call/import must be resolved
+transitively, and unsupported syntax or semantics must stop verification.
+Contract comments supply specifications; they never stand in for function
+bodies. Compiler version, target, safety/optimization mode, imported sources,
+assumptions, frontend version, IR, obligations and checker results must all be
+bound to the same evidence before a production verification claim is made.
+
+Use a restricted AST elaborator plus compiler witnesses initially. This avoids
+depending immediately on an unstable compiler AIR interface while keeping the
+admitted language deliberately small. It is not permission to infer arbitrary
+Zig semantics from token spellings. Reassess AIR/compiler integration at R1;
+if a construct cannot be elaborated faithfully, refuse it until there is a
+checked translation or a validation argument. The long-term typed contract IR
+has Idris2 authority; the Zig pilot IR is explicitly untrusted plumbing.
+
+== Executable experiment in this sprint
+
+`tools/atoma/src/source.zig` accepts one exported C-callconv function with one
+`u8` input and a `u8` result. Its body is exactly one return of the input, a
+u8 literal, or input `+%` a u8 literal. One postcondition states
+`result == input +% literal`. There are no calls, imports, pointers, state,
+branches, loops, generics, comptime evaluation or ordinary overflowing addition.
+Unknown or duplicate directives and trailing declarations are rejected.
+
+The module parses with the pinned Zig AST, lowers to typed `Expr`/`Program`,
+emits an 8-bit SMT equality-negation query and enumerates all 256 inputs.
+`source-vc` emits the query; `source-check` reports a counterexample or a
+`SOURCE-PILOT-CHECKED` result. The source digest includes the complete raw input
+under domain `atoma.source.u8.v1`. No caching or certificate promotion exists.
+
+The CI gate independently compiles `increment.zig` and executes all inputs
+against its specification. `wrong-body.zig` retains the same contract but
+returns input plus two; both the generated obligation and compiled execution
+must fail. The recursive fixture must be refused. The emitted SMT queries are
+checked using the existing local Z3 diagnostic path, not a new solver-dispatch
+service. ECHIDNA remains the owner of production dispatch and checked exchange.
+
+This is finite evidence about a tiny fragment and one compiled fixture. The
+AST parser, elaborator, evaluator, SMT emitter, compiler and execution platform
+remain trusted. `source-check` alone does not run the compiler. Its successful
+exit is neither a general Zig proof nor a kernel-checked Receipt. The gate
+keeps `INCOMPLETE (Warrant)` even when every experiment passes.
+
+The older `atoma vc` command remains a 14-query frame-model demonstration with
+partial contract guards. It is not silently upgraded by the existence of the
+new command. Likewise, `atoma check` screens tokens and locally visible call
+cycles; imports, aliases and higher-order calls are not generally resolved.
+
+== Next semantic work
+
+. Define a closed typed scalar/struct/slice subset and an assumption manifest;
+  pin the compiler adapter and targets. Add source locations to every IR node.
+. Model finite machine arithmetic separately from mathematical integers. Check
+  ordinary overflow, wrapping and saturating operations under their own rules.
+. Add caller-owned read/write regions, explicit disjointness, framing, lifetime
+  and alias obligations before general pointer support. The current frame fix
+  assumes a valid writable output lease disjoint from input/handle/iterator.
+  Null output is rejected; arbitrary invalid pointers cannot be validated here.
+. Add modular calls, error unions, defer/errdefer, loops with invariants and
+  variants, then connect generated obligations to the extended Agda semantics.
+. Prove or translation-validate lowering and VC generation for the admitted
+  subset. If implemented in Rust, allocate Creusot + Pearlite and complementary
+  Verus obligations explicitly, as required by the estate proof policy.
+. Replay one real body-derived proof through ECHIDNA and all required kernels;
+  bind it to the full source/tool/target closure and test invalidation.
+
+Direct/mutual recursion rejection is deliberately conservative. Adding a
+decreasing variant annotation cannot merely suppress that diagnostic: its
+meaning must be checked before recursion enters the proved subset.
+
+== Alternatives and consequences
+
+A full compiler fork/AIR integration may eventually provide better resolved
+semantics, but introduces compiler-version coupling before the first proof
+path works. A text-only checker is cheaper but cannot establish the required
+source connection. A universal cross-language IR may help later, but forcing
+memory, actor protocols, dynamic dispatch and effects into one early model
+would obscure the different obligations. Reuse evidence and exchange interfaces
+first; extract semantics only after two frontends demonstrate equivalence.
+
+Every expansion needs a positive fixture, an unsupported fixture, a body-only
+counterexample, source/target invalidation evidence and a stated proof scope.
+Changing tests or status prose cannot discharge a missing refinement obligation.

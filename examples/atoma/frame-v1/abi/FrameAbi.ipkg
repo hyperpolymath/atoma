@@ -3,8 +3,8 @@
 --
 -- Idris2 package for the frame-v1 ABI contract (Face A).
 --
---   idris2 --typecheck abi/FrameAbi.ipkg      # gate F0.1
---   idris2 --exec extract FrameAbi           # would print the canonical .cspec
+-- From this directory: idris2 --typecheck FrameAbi.ipkg
+-- Full F0.1 extraction/equivalence gate: bash scripts/atoma-check-idris.sh
 --
 -- `depends = base` only: the contract must not depend on libraries whose
 -- semantics are themselves unproved.
@@ -19,4 +19,4 @@ sourcedir = "."
 
 depends = base
 
-modules = FrameAbi
+modules = FrameAbi, Linearity, Extract
