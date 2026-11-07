@@ -3,6 +3,9 @@
 # Docs: https://gh.io/actions-lockfile
 version: 'v0.0.3'
 workflows:
+    '.github/workflows/atoma.yml':
+        - 'actions/checkout@v7.0.1'
+        - 'actions/upload-artifact@v7.0.2'
     '.github/workflows/build-notification.yml':
         - 'actions/checkout@v7.0.1'
     '.github/workflows/codeql.yml':
@@ -220,16 +223,6 @@ dependencies:
         uses:
             - 'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1'
             - 'hyperpolymath/cicd-suite@0da816c05ae7486671d863e07935f93981c0c2d5'
-    'hyperpolymath/deed-ecosystem@main':
-        ref: 'main'
-        commit: 'sha1-44f9c9fc42901a55e0f489a40eabf4173e550d1d'
-        owner_id: 6759885
-        repo_id: 1275649586
-    'hyperpolymath/k9-ecosystem@main':
-        ref: 'main'
-        commit: 'sha1-2155aa26a21758f2ba119f61bc7e0e1981c106fb'
-        owner_id: 6759885
-        repo_id: 1275650185
     'hyperpolymath/smtp-notify-action@v0.5.0':
         ref: 'v0.5.0'
         commit: 'sha1-c1c9fa07992a02c1fd3d67a0dc1b08cccb852aef'
@@ -260,11 +253,6 @@ dependencies:
         owner_id: 67707773
         repo_id: 421101922
     'oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6':
-        ref: 'v2.2.0'
-        commit: 'sha1-0c5077e51419868618aeaa5fe8019c62421857d6'
-        owner_id: 108928776
-        repo_id: 512644635
-    'oven-sh/setup-bun@v2.2.0':
         ref: 'v2.2.0'
         commit: 'sha1-0c5077e51419868618aeaa5fe8019c62421857d6'
         owner_id: 108928776

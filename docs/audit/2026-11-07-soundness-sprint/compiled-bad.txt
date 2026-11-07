@@ -1,0 +1,11 @@
+1/1 compiled-witness.test.compiled pilot matches the contract for every u8 input...expected 1, found 2
+FAIL (TestExpectedEqual)
+/home/hyperpolymath/.local/share/mise/installs/zig/0.15.2/lib/std/testing.zig:110:17: 0x102c034 in expectEqualInner__anon_1732 (std.zig)
+                return error.TestExpectedEqual;
+                ^
+/var/tmp/codex-atoma-soundness-20261107/examples/atoma/source-u8/compiled-witness.zig:9:9: 0x102c127 in test.compiled pilot matches the contract for every u8 input (compiled-witness.zig)
+        try std.testing.expectEqual(x +% @as(u8, 1), increment(x));
+        ^
+0 passed; 0 skipped; 1 failed.
+error: the following test command failed with exit code 1:
+/home/hyperpolymath/.cache/zig/o/d87bfa176a6bf57f9db48e8b3d8f75c4/test --seed=0xbe1df2c4

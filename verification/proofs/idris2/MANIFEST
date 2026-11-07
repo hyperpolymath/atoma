@@ -3,7 +3,10 @@
 # gated      = must compile.  quarantine = known-broken, must keep failing.
 # Ground-truthed 2026-07-17 with idris2 0.7.0 (developer/tools/opt/pack).
 verification/proofs/idris2|ABI/Foreign.idr|gated| the one shipped Idris2 module that compiles — real content, not a stub
-verification/proofs/idris2|Types.idr|quarantine| Undefined name LTE (needs Data.Nat); Idris1-era template, has never compiled
+examples/atoma/frame-v1/abi|FrameAbi.idr|gated| checked specification and QTT model; no executable FFI claim
+examples/atoma/frame-v1/abi|Linearity.idr|gated| compiler must reject dropping and duplicating linear resources
+examples/atoma/frame-v1/abi|Extract.idr|gated| executable contract encoder; equivalence checked by atoma-check-idris.sh
+verification/proofs/idris2|Types.idr|gated| existing Data.Nat import and bounded/nonempty proofs rechecked on Idris2 0.8.0; stale quarantine removed
 verification/proofs/idris2|ABI/Layout.idr|quarantine| Undefined name NonZero (needs Data.Nat); then a genuine unification failure (S ?x vs f .fieldAlignment)
 verification/proofs/idris2|ABI/Platform.idr|quarantine| Undefined name LTE (needs Data.Nat); then Undefined name lteRefl
 verification/proofs/idris2|ABI/Pointers.idr|quarantine| .nonNull declared at quantity 0 (erased) yet projected into a value position, plus a unification failure — design decision, not a typo

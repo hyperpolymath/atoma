@@ -1,6 +1,18 @@
 // SPDX-License-Identifier: CC-BY-SA-4.0
 // Copyright (c) Jonathan D.A. Jewell <j.d.a.jewell@open.ac.uk>
-= rsr-template-repo Roadmap
+= Atoma roadmap entry point
+
+The active Atoma plan is link:../plan/ULTRAPLAN.adoc[the soundness-first v1
+plan]. Its source/proof boundary and current limitations are authoritative for
+Atoma work. The inherited template journal below is historical scaffold
+content awaiting A1 identity minting; its percentages are not Atoma readiness.
+
+2026-11-07: the proof registry now includes Atoma. The already-repaired
+`verification/proofs/idris2/Types.idr` typechecks on the audited Idris2 profile
+and is promoted from stale quarantine to gated; the four remaining inherited
+ABI quarantines still fail as documented.
+
+== Inherited template journal (not current Atoma status)
 
 The journal of the template itself: milestones, blockers and next actions.
 A repo minted from the template does not inherit it: `just repo-init`

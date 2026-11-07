@@ -1,0 +1,114 @@
+// SPDX-License-Identifier: CC-BY-SA-4.0
+// SPDX-FileCopyrightText: 2026 Jonathan D.A. Jewell <j.d.a.jewell@open.ac.uk>
+= Atoma soundness repair: evidence and limits
+:revdate: 2026-11-07
+
+Baseline: `8d7898572285c2abe9fe0f3dfd3e892ec1a211f2` (main, 22 October).
+This report describes the repair working tree and its reproducible gates.
+The PR's hosted CI artifact binds the exact tested commit; local evidence
+does not replace that run. Evidence files below live beside this report in
+`2026-11-07-soundness-sprint/`.
+
+== Reproduced failures and repairs
+
+[cols="2,3,3",options="header"]
+|===
+| Finding | Baseline evidence | Repair / regression
+| Output error contract violated | `before-contract-probes.log`: null handle and truncated iterator both leave 0xa5 bytes in a valid output | Resolve the writable output first and clear it before wrapper errors. Two permanent tests also check bad tag/input, null output and unchanged iterator state.
+| Normative contract did not compile | `before-idris.log`: formula/type confusion, names colliding with builtin/type constructors, false layout extent and invalid FFI declaration | Typecheck contract/QTT model; distinguish predicates/sorts; prove extent 14, witness size 16; remove unsupported foreign binding rather than pretend it has the C ABI.
+| Face A was handwritten | Contract encoder lacked requires/ensures prefixes and used a different bound expression | Compile/run `Extract.idr` in a fresh directory and check canonical equality. Both existing face hashes are preserved.
+| Recursion passed the screen | `before-recursion.log`: the direct recursive export returned success | File-local reference graph rejects visible direct/mutual cycles; tests include an alias and an acyclic control. General semantic subset admission remains open.
+| Source and proof were disconnected | Legacy VCs depend on selected contract facts, not the body | Closed u8 source pilot emits body-derived QF_BV and exhaustively checks its typed model. Compiled fixture also tested on all 256 inputs; body-only mutant fails.
+| Stale or absent tooling could reassure | Existing executable reused; missing proof tools permitted not-run; solver output piped through tail | Mandatory tools, unconditional rebuild, full solver verdict plus process status, timeout and executable gate falsifiers.
+| Proofs invisible to estate registry | Four Atoma Agda modules outside original scan | Register Atoma Agda/Idris files, widen owned-directory coverage, and require scoped coverage in CI.
+| Plan understated critical path | Kernel replay treated as the main route to readiness | Explicit source-to-semantics and replay paths, v1 release gates, phased estimates, aspect interactions and sibling-transfer decision.
+|===
+
+== Observed local validation
+
+Commands: `bash scripts/atoma-gate.sh`, `zig build test` from `tools/atoma`,
+`git diff --check`, and the scoped `gh actions-lock` verification. Native
+Linux scratch space was used for compilation because Windows-mounted Zig
+cache renames had failed during reconnaissance.
+
+[cols="3,2",options="header"]
+|===
+| Check | Observed result
+| Zig tool unit tests (canon/frontend/legacy VC/source pilot) | 24 passed
+| Frame example tests | 13 passed
+| Idris2 specification, extractor and QTT negative blocks | Fresh package typecheck and executable extraction passed
+| Four cross-compilation targets / layout | x86_64, aarch64, riscv64, wasm32; 60 rows
+| Contract equivalence | Existing canonical contract/seam digests preserved
+| Legacy frame-model SMT corpus | Expected 8 unsat / 6 sat; no implementation-proof claim
+| Agda model | Four modules passed safe/without-K
+| Estate proof entrypoints | Agda: all 5 registered files accounted for and checked. Idris2: 9 accounted for; gated files pass and four documented ABI quarantines still fail. Stale `Types.idr` quarantine promoted after successful check.
+| Source-generated obligation | Good body unsat; same contract with wrong body sat
+| Finite source-model check | All 256 inputs accepted for good body; wrong body rejected with concrete counterexample
+| Compiled execution witness | Good executable passes all 256 inputs; wrong executable fails
+| Gate falsifiers | Eight groups: missing Zig/Z3/Agda/Idris2, stale executable, failed solver process, source-command I/O/parse errors and empty proof registry all rejected
+| Actions lock | Atoma's two actions resolved and ran in hosted CI. Frozen lock verification fails on three inherited `not-pinned` entries in the central audit/dogfood chain; the committed JSON records that failure, not a global pass.
+| Receipt | INCOMPLETE / Warrant, unchanged claim class
+|===
+
+Local profile: Zig 0.15.2, Z3 4.13.3, Agda 2.6.4.3 and Idris2
+0.8.0-b6cbc25d5. CI uses the separate pinned release profile documented in
+`../decisions/ATOMA-TOOLCHAIN.adoc`. Tool version/digest records and detailed
+logs are emitted into `build/atoma-evidence/`; hosted artifacts retain them for
+30 days. Selected local evidence is committed here; `inputs.sha256` records
+the tested working-tree inputs, not a claim that every later documentation
+edit was present in that run.
+
+== Review boundaries and remaining work
+
+* No Zig-to-Agda refinement theorem, checked general VC generator, general
+  alias/loop/call model or Dedukti/Coq/Lean4 replay was added.
+* The u8 experiment is a deliberately tiny, exhaustively checkable language;
+  its parser, lowering, emitter, evaluator and compiler remain trusted.
+  Passing the general token screen still proves no semantic subset membership.
+* The frame repair assumes a valid writable output lease disjoint from input,
+  handle and iterator. It checks null pointers, not arbitrary pointer validity.
+* This PR does not mint the inherited deed, edit licences, fix all template
+  workflows, certify standards compliance or publish a release.
+* CI bootstrap dependencies are not a fully reproducible Guix closure. The
+  bounded deviation must be retired or reviewed before release.
+* Sibling plans were compared for reuse opportunities; their engines were not
+  audited or modified. See `../decisions/ATOMA-SIBLING-TRANSFER.adoc`.
+
+== Hosted validation
+
+https://github.com/hyperpolymath/atoma/pull/2[PR #2] carries hosted validation.
+The initial workflow linter found missing SPDX metadata on the newly created
+workflow; new files now carry the repository's existing code/document
+declarations. Bootstrap and installation also use the same Idris prefix.
+No existing licence terms or declarations are changed.
+
+The official lock generator (v0.4.1), when run globally, removed reusable-
+workflow entries and made `scripts/check-lock-sync.sh` fail. Those generated
+changes were reverted. The three inherited frozen-lock warnings remain explicit
+estate debt requiring a coordinated fix in the canonical workflow/lock tooling;
+neither the existing lock-sync gate nor its coverage was weakened to get green.
+
+Review also identified inconsistent I/O exit codes in the new source commands.
+Missing/oversized/malformed input and failed output writes now return 3;
+counterexamples and unsupported constructs return 1. A failed stdout write
+is never silently discarded. An explicit empty-module guard supplements the
+Agda checker's existing empty-registry rejection.
+
+The active https://github.com/hyperpolymath/atoma/rules/26764574[Atoma soundness
+ruleset] requires `Atoma soundness gate` from GitHub Actions (integration
+15368) on `main`, with strict up-to-date checking and no bypass actors. The
+existing Branch-Floor rule remains active. Hosted proof-tool execution was
+pending while preparing this report; the PR description/final update records
+the observed result and unrelated failing estate checks. A local pass is not
+a substitute for that result.
+
+Commits use GitHub's authenticated automatically signed commit API. Signature
+validity was checked through the API and independently with the official
+GitHub public signing key in an isolated keyring (`SIGNATURE_STATUS=G`);
+the user's normal keyring and signing configuration were not changed.
+
+The pinned hosted profile passed in
+https://github.com/hyperpolymath/atoma/actions/runs/42395104592[run 42395104592]
+at commit `63018ee9c73bb1e2d3a436ef067cfb3c4e82c374`, including artifact upload.
+The final PR head also adds the CLI I/O and empty-registry falsifiers; its run
+must pass independently and is linked in the PR description.

@@ -26,6 +26,7 @@ const std = @import("std");
 const canon = @import("canon.zig");
 const frontend = @import("frontend.zig");
 const vc = @import("vc.zig");
+const source = @import("source.zig");
 
 const gpa = std.heap.page_allocator;
 
@@ -56,8 +57,21 @@ fn print(comptime fmt: []const u8, args: anytype) void {
     say(s);
 }
 
+// Source verification reports are evidence: a missing report is an I/O failure.
+fn sourceReport(comptime fmt: []const u8, args: anytype) void {
+    var buf: [4096]u8 = undefined;
+    const bytes = std.fmt.bufPrint(&buf, fmt, args) catch |e| {
+        std.debug.print("SOURCE-IO-ERROR: {s}\n", .{@errorName(e)});
+        std.process.exit(3);
+    };
+    std.fs.File.stdout().writeAll(bytes) catch |e| {
+        std.debug.print("SOURCE-IO-ERROR: {s}\n", .{@errorName(e)});
+        std.process.exit(3);
+    };
+}
+
 fn usage() noreturn {
-    sayLine("usage: atoma <canon|hash|vc-hash|dk-hash|src-hash|extract|check|vc|equiv|mutate|ops|selftest> [args]");
+    sayLine("usage: atoma <canon|hash|vc-hash|dk-hash|src-hash|extract|check|vc|source-vc|source-check|equiv|mutate|ops|selftest> [args]");
     std.process.exit(2);
 }
 
@@ -71,7 +85,38 @@ pub fn main() !void {
     if (args.len < 2) usage();
     const cmd = args[1];
 
-    if (std.mem.eql(u8, cmd, "canon")) {
+    if (std.mem.eql(u8, cmd, "source-vc") or std.mem.eql(u8, cmd, "source-check")) {
+        if (args.len != 3) usage();
+        const src = readFile(args[2]) catch |e| {
+            print("SOURCE-IO-ERROR {s}: {s}\n", .{ args[2], @errorName(e) });
+            std.process.exit(3);
+        };
+        const p = source.lower(gpa, src) catch |e| {
+            print("SOURCE-REFUSED {s}: {s}\n", .{ args[2], @errorName(e) });
+            std.process.exit(switch (e) {
+                error.ParseError, error.OutOfMemory => @as(u8, 3),
+                else => @as(u8, 1),
+            });
+        };
+        if (std.mem.eql(u8, cmd, "source-vc")) {
+            var out = std.Io.Writer.Allocating.init(gpa);
+            defer out.deinit();
+            p.emit(&out.writer) catch |e| {
+                std.debug.print("SOURCE-IO-ERROR: {s}\n", .{@errorName(e)});
+                std.process.exit(3);
+            };
+            std.fs.File.stdout().writeAll(out.written()) catch |e| {
+                std.debug.print("SOURCE-IO-ERROR: {s}\n", .{@errorName(e)});
+                std.process.exit(3);
+            };
+        } else if (p.counterexample()) |x| {
+            print("SOURCE-COUNTEREXAMPLE input={d} actual={d} expected={d}\n", .{ x, p.body.eval(x), x +% p.ensures_add });
+            std.process.exit(1);
+        } else {
+            const hash = std.fmt.bytesToHex(p.source_hash, .lower);
+            sourceReport("SOURCE-PILOT-CHECKED inputs=256 source-blake3:{s}\nSTATUS: INCOMPLETE (Warrant); frontend/compiler refinement unproved\n", .{hash});
+        }
+    } else if (std.mem.eql(u8, cmd, "canon")) {
         if (args.len != 3) usage();
         const src = readFile(args[2]) catch |e| {
             sayLine(@errorName(e));

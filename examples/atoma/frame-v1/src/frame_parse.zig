@@ -251,18 +251,22 @@ fn mapError(e: ParseError) Result {
 /// The contract above is the *only* place the boundary is specified. It is
 /// extracted by `atoma extract src/frame_parse.zig` and must hash equal to
 /// `spec/face-b.cspec` (gate G8), which in turn must hash equal to the Idris2
-/// face (gate G5). Three sources of truth, one digest.
+/// face (gate G5). Executed specification and extracted annotation agree;
+/// this alone does not prove the implementation body satisfies the contract.
 export fn atoma_frame_parse(
     h: ?*const Handle,
     in_ptr: ?[*]const u8,
     in_len: u32,
     out: ?*FrameOut,
 ) callconv(.c) Result {
+    // The output lease is caller-owned, writable and disjoint from input/handle.
+    // Validate the nullable pointer before clearing it; every subsequent error
+    // must honour the zero-on-error contract, including wrapper-level failures.
+    const dst = out orelse return .invalid_arg;
+    atoma.zeroBytes(dst);
     const handle = h orelse return .invalid_arg;
     if (handle.abi_tag != HANDLE_TAG) return .invalid_arg;
     const p = in_ptr orelse return .invalid_arg;
-    const dst = out orelse return .invalid_arg;
-
     parseInto(p[0..in_len], dst) catch |e| return mapError(e);
     return .ok;
 }
@@ -370,11 +374,12 @@ export fn atoma_iter_open(
 /// @bound steps ( + 32 ( * 8 ( len it ) ) )
 /// @bound hwm 96
 ///
-/// The cursor advance is the only state change, and it is bounded by the
-/// payload-length postcondition because `parseInto` succeeded.
+/// On success the cursor and frame count advance; parseInto checks the payload
+/// fits. Wrapper failures clear the output without advancing iterator state.
 export fn atoma_iter_next(it: ?*FrameIter, out: ?*FrameOut) callconv(.c) Result {
-    const s = it orelse return .invalid_arg;
     const dst = out orelse return .invalid_arg;
+    atoma.zeroBytes(dst);
+    const s = it orelse return .invalid_arg;
 
     const remaining = s.len - s.cursor; // cursor ≤ len is an invariant (VC I3)
     if (remaining < HEADER_LEN) return .truncated;
@@ -402,8 +407,8 @@ export fn atoma_iter_next(it: ?*FrameIter, out: ?*FrameOut) callconv(.c) Result 
 /// @bound steps 8
 /// @bound hwm 32
 ///
-/// Consumes the lease exactly once; the `live` bit is cleared before the slot is
-/// wiped, so a concurrent observer can never see a live bit over zeroed state.
+/// Clears the live bit before wiping the slot in this single-threaded API.
+/// These ordinary memory accesses provide no concurrent-observer guarantee.
 export fn atoma_iter_close(h: ?*Handle, it: ?*FrameIter) callconv(.c) Result {
     const hh = h orelse return .invalid_arg;
     if (hh.abi_tag != HANDLE_TAG) return .invalid_arg;
@@ -465,12 +470,12 @@ test "parses a well-formed frame, zero-copy" {
     try testing.expect(atoma.paddingIsZero(&out));
 }
 
-test "rejects a short buffer without touching out" {
+test "rejects a short buffer and clears out" {
     var buf: [4]u8 = .{ 0, 0, 0, 0 };
     var h: Handle = undefined;
     _ = atoma_handle_create(&h);
     var out: FrameOut = undefined;
-    atoma.zeroBytes(&out);
+    @memset(std.mem.asBytes(&out), 0xa5);
     try testing.expectEqual(Result.truncated, atoma_frame_parse(&h, &buf, buf.len, &out));
     try testing.expect(atoma.isZeroed(&out));
 }
@@ -523,6 +528,38 @@ test "null arguments are refused, every one of them" {
     try testing.expectEqual(Result.invalid_arg, atoma_frame_parse(null, &buf, 16, &out));
     try testing.expectEqual(Result.invalid_arg, atoma_frame_parse(&h, null, 16, &out));
     try testing.expectEqual(Result.invalid_arg, atoma_frame_parse(&h, &buf, 16, null));
+}
+
+test "wrapper errors clear every output byte including padding" {
+    var h: Handle = undefined;
+    _ = atoma_handle_create(&h);
+    var out: FrameOut = undefined;
+    var buf: [12]u8 = @splat(0);
+    @memset(std.mem.asBytes(&out), 0xa5);
+    try testing.expectEqual(Result.invalid_arg, atoma_frame_parse(null, &buf, buf.len, &out));
+    try testing.expect(atoma.isZeroed(&out));
+    @memset(std.mem.asBytes(&out), 0xa5);
+    try testing.expectEqual(Result.invalid_arg, atoma_frame_parse(&h, null, buf.len, &out));
+    try testing.expect(atoma.isZeroed(&out));
+    h.abi_tag = 0;
+    @memset(std.mem.asBytes(&out), 0xa5);
+    try testing.expectEqual(Result.invalid_arg, atoma_frame_parse(&h, &buf, buf.len, &out));
+    try testing.expect(atoma.isZeroed(&out));
+}
+
+test "iterator errors clear output and preserve iterator state" {
+    var buf: [1]u8 = .{0};
+    var it = FrameIter{ .buf = &buf, .len = 1, .cursor = 0, .frames = 0 };
+    var out: FrameOut = undefined;
+    @memset(std.mem.asBytes(&out), 0xa5);
+    try testing.expectEqual(Result.truncated, atoma_iter_next(&it, &out));
+    try testing.expect(atoma.isZeroed(&out));
+    try testing.expectEqual(@as(u32, 0), it.cursor);
+    try testing.expectEqual(@as(u32, 0), it.frames);
+    @memset(std.mem.asBytes(&out), 0xa5);
+    try testing.expectEqual(Result.invalid_arg, atoma_iter_next(null, &out));
+    try testing.expect(atoma.isZeroed(&out));
+    try testing.expectEqual(Result.invalid_arg, atoma_iter_next(&it, null));
 }
 
 test "iterator leases are linear: leak is detected, close releases" {

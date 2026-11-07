@@ -1,5 +1,5 @@
-# Face A — the Idris2 contract, transcribed from what `encode frameParse`
-# prints (gate F0.1 replaces this transcription with the extractor's bytes).
+# Face A — reviewed surface spelling of the Idris2 contract. Gate F0.1
+# executes `encode frameParse` and checks canonical equivalence with this file.
 #
 # Deliberate surface differences from Face B, all erased by canonicalisation:
 #   * hex literals and a different binder name in the forall (R4/R5)

@@ -1,0 +1,1 @@
+SOURCE-COUNTEREXAMPLE input=0 actual=2 expected=1

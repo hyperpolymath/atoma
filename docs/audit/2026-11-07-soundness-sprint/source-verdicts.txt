@@ -1,0 +1,2 @@
+good-body unsat
+wrong-body sat

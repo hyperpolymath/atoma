@@ -1,0 +1,3 @@
+fixtures/recursion.zig:4: E-RECURSION-UNSUPPORTED: recurse
+fixtures/recursion.zig:8: E-RECURSION-UNSUPPORTED: helper
+fixtures/recursion.zig: 2 declarations, 1 exports, 1 contracts, 2 diagnostics
