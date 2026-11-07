@@ -30,9 +30,9 @@
   ; equal canon.lock [canon.artifacts]; canon.lock [canon.lockstep].order is
   ; spine-adopts-then-canon-releases, so this clause moves FIRST.
   (canon
-    :version "2.1.2"
+    :version "2.1.4"
     :criteria-sha256 "6a5aa8857bd0d0d58ef48827938ca17c251b6b854dacf59d306388d61694d82a"
-    :gates-sha256 "e70efd2f53c9445e30da4baf770366f04a4a84ffd844a01426e587e565b53e6a"
+    :gates-sha256 "2f31f46d4753432e0aa8c9c28f339e18e062c98dc6e6ef4ecbb76993cf37638b"
     :lockstep-since "2026-09-17"
     ; A canon change this repo cannot satisfy is a change made in the WRONG
     ; ORDER, not a rejected change: land the spine's adoption first, then the
@@ -199,8 +199,8 @@
   (manifest
     :version "0.1.0"
     :last-updated "2026-11-07"
-    :project "Atoma"
-    :purpose "Canonical RSR (Rhodium Standard Repository) template — governance, CI/CD, machine-readable metadata, ABI/FFI seam and formal-verification scaffolding that hyperpolymath projects are instantiated from."
+    :project "atoma"
+    :purpose "Experimental verification of a closed Zig subset, with source-bound obligations, model proofs and explicit replay/refinement limits."
     (agent :name CLAUDE :role "proofs, compilers, repo-local implementation, CI/CD, formal verification, Rust/Idris2/Zig")
     (agent :name CHATGPT :role "prose, papers, publication review, standards docs, outreach drafts, letters")
     (agent :name GEMINI :role "estate audits, cross-repo sweeps, long-context triage, pattern detection")
@@ -1044,16 +1044,8 @@
         "Axis 1 priority governs resource allocation"
         "Axis 2 type governs commit categorisation"
         "Axis 3 focus governs audit depth")))
-  ; rsr-profile — this repo's declared RSR v2.0 capabilities.
-  ; Written by just repo-init on 2026-11-07. The template's maximal
-  ; profile was replaced at mint: declare only what this tree carries.
-  (rsr-profile
-    :version "1.0.0"
-    :spec "rsr-criteria-v2"
-    :declares-against "2.1.1-draft"
-    ; UNASSIGNED: declare capabilities (or a preset) — see standards
-    ; .machine_readable/template-capability-gates.toml
-    :capabilities ())
+  (rsr-profile :version "1.0.0" :spec "rsr-criteria-v2" :declares-against "2.1.4-draft"
+    :capabilities ("bash" "zig" "cli" "library" "formal-proofs"))
   ; variant — provenance contract (ADR-0002 shape; ADR-0003 use).
   ; Records what this repo was minted from, for re-templating tooling and
   ; the drift gate (scripts/check-variant-drift.sh). The mint renders

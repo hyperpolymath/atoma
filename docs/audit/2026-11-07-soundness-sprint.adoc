@@ -149,3 +149,33 @@ job-aware closure check are recorded distinctly; a global pass is not claimed.
 The existing SonarCloud project is `hyperpolymath_zigprove` (Atoma's previous
 name); the local scanner configuration now targets that project rather than
 the template's project.
+
+== Remaining inherited gate repairs after PR 3
+
+PR 3 was merged on 2026-11-07 while its inherited gate repairs were still
+being evaluated. The following follow-up uses the actual failure evidence:
+
+* Governance's old allowlist snapshot did not recognise the standards
+  repository transfer. Pin its reusable to reviewed main commit `fe57d352`.
+* Adopt the canon's 2.1.4 identity and gate-table hash; the criteria hash is
+  unchanged. This is a declared audit target, not a conformance certificate.
+* Pin the merged canonical FFI-scope repair from cicd-suite PR 93 at
+  `2dbe6e9c`. Declare the frame implementation and its local import closure
+  as the FFI scope. The CLI remains outside that lexical FFI rule.
+* Repair the map staleness control in the canonical template (PR 294), with
+  the same change here. It now creates its own tracked/deleted fixture and
+  checks both index and worktree behavior instead of depending on archetypes/.
+* Correct the folded manifest's repository identity and purpose, and declare
+  the demonstrated core capabilities instead of leaving the profile unassigned.
+
+The native RSR applicability reader was also run, using its validated DEED
+AST. It found retained template packaging/interface/release scaffolding that
+does not match the declared core capabilities. That is recorded maintenance
+debt, not hidden by declaring every possible capability. Broad RSR qualification
+remains unearned; structural `just validate-rsr` is a different, weaker check.
+Packaging/profile reconciliation is a follow-up before an experimental release.
+
+Local lock closure and placeholder validation pass. The full local mint test
+could not start without uuidgen: apt-listbugs refused the available Debian
+uuid-runtime package (bug 1126894), and the refusal was not overridden.
+Hosted Ubuntu CI supplies that tool and must establish the complete mint result.
