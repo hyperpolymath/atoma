@@ -1,0 +1,11 @@
+File "./Audit.v", line 2, characters 5-8:
+Warning: "From Coq" has been replaced by "From Stdlib".
+[deprecated-from-Coq,deprecated-since-9.0,deprecated,default]
+File "./Audit.v", line 4, characters 7-26:
+Error:
+The term "atoma_u8" has type
+ "forall x : nat, x < 256 -> body x = specification x"
+while it is expected to have type
+ "forall x : nat, x < 256 -> (x + 1) mod 256 = (x + 1) mod 256"
+(cannot unify "body x = specification x" and
+"(x + 1) mod 256 = (x + 1) mod 256").

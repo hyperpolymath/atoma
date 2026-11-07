@@ -1,0 +1,60 @@
+1/3: Building FrameAbi (FrameAbi.idr)
+2/3: Building Extract (Extract.idr)
+3/3: Building Linearity (Linearity.idr)
+EQUIVALENT blake3:ee4d77f0932619c5c1933d342f645a4eff85d9fead9fb0c1d9c8a0890feb2358
+F0.1 ok: Idris2 contract, QTT negatives and executable Face A extraction
+atoma 24 tests (canon + frontend + vc + source)
+G1 ok  unit tests (frame_parse)
+G2 ok  cross-compiles: x86_64 aarch64 riscv64 wasm32
+G3 ok  layout witness: 60 rows over 4 targets
+G4 ok  usize-across-FFI rejected on wasm32 (F0.3)
+G5 ok  seam equivalence blake3:f5f97a7bee44d4596590ecb7745c70565ebdf4fb5daa8a48d9a365a85f265756
+G5 ok  divergence probe blake3:d49201f2c05100701a8ed42138066e50ee488b050b6d8ad49957c6226affca70
+G6 ok  mutation sweep: 11 applied, 11 distinct artifacts
+G7 ok  14 VCs discharged by z3: 8 unsat, 6 sat (blake3:dec3d83389ef29f4ec5d49805ba527f92fef6224b0613a98393ed7f1c69ce35d)
+G8 ok  Face B extracted from source blake3:ee4d77f0932619c5c1933d342f645a4eff85d9fead9fb0c1d9c8a0890feb2358
+G9 ok  syntax screen: 6 exports, 6 contracts, 0 diagnostics
+G10 ok negative corpus rejected: 20 diagnostics, 17 distinct codes
+G11 ok  metatheory typechecks: 4 modules, 0 postulates (blake3:e2b2f961812d4ed1165f3d306d267dd95af7d0f13f7ce146fde9355d7a647249)
+
+receipt: witness/phase0.receipt.json
+{"artifacts":{"face-a":"blake3:f5f97a7bee44d4596590ecb7745c70565ebdf4fb5daa8a48d9a365a85f265756","face-b":"blake3:f5f97a7bee44d4596590ecb7745c70565ebdf4fb5daa8a48d9a365a85f265756","layout":"blake3:c75f72ce33010b457c8dc7f8c8514720904ddaeca9de0ce412cc7d61cf8accd1"},"contract":"atoma.frame.parse","equivalence":"EQUIVALENT","gate":"phase0","mutants":{"applied":11,"distinct":11},"proof":{"modules":4,"srcset":"blake3:e2b2f961812d4ed1165f3d306d267dd95af7d0f13f7ce146fde9355d7a647249","status":"checked"},"schema":"atoma.receipt.v1","smt":{"status":"discharged","vcs":14,"vcset":"blake3:dec3d83389ef29f4ec5d49805ba527f92fef6224b0613a98393ed7f1c69ce35d"},"status":"INCOMPLETE","status_class":"Warrant","subset":{"codes_negative_corpus":17,"contracts":6,"diagnostics_negative_corpus":20},"targets":["aarch64","riscv64","wasm32","x86_64"],"tests":{"atoma":24,"frame_parse":13}}
+STATUS: INCOMPLETE (Warrant) - Dedukti/coqchk/lean4checker checks did not run.
+SOURCE-PILOT-CHECKED inputs=256 source-blake3:bd2dd1c4c6b45f4ba3f58ece20f737ea9121bde5061f64b593b2e039d5e4d041
+STATUS: INCOMPLETE (Warrant); frontend/compiler refinement unproved
+1/1 compiled-witness.test.compiled pilot matches the contract for every u8 input...OK
+All 1 tests passed.
+falsifier PASS missing ZIG rejected
+falsifier PASS missing Z3 rejected
+falsifier PASS missing AGDA rejected
+falsifier PASS missing IDRIS2 rejected
+falsifier PASS stale executable cannot bypass current-source build
+falsifier PASS solver stdout cannot hide a failed process
+falsifier PASS source command input/output errors are distinct from verification failures
+falsifier PASS empty Agda registry rejected
+REPLAY-MODEL-CHECKED: ECHIDNA + coqchk; INCOMPLETE, Zig refinement unproved
+source.zig: OK
+AtomaProof.v: OK
+AtomaProof.vo: OK
+Audit.v: OK
+Audit.vo: OK
+echidna.json: OK
+coqchk.txt: OK
+assumptions.txt: OK
+coqc-version.txt: OK
+coqchk-version.txt: OK
+echidna-version.txt: OK
+REPLAY-MODEL-CHECKED: ECHIDNA + coqchk; INCOMPLETE, Zig refinement unproved
+REPLAY-FALSIFIER-KILLED wrong-body
+REPLAY-FALSIFIER-KILLED literal
+REPLAY-FALSIFIER-KILLED stale-source
+REPLAY-FALSIFIER-KILLED admitted
+REPLAY-FALSIFIER-KILLED missing-kernel
+REPLAY-FALSIFIER-KILLED reused-directory
+REPLAY-FALSIFIER-KILLED malformed
+REPLAY-FALSIFIER-KILLED unknown
+REPLAY-FALSIFIER-KILLED no-proof
+REPLAY-FALSIFIER-KILLED corrupt
+REPLAY-FALSIFIER-KILLED wrong-library
+REPLAY GATE PASS: two source-derived models checked, 11 rejection controls, axiom control; INCOMPLETE
+ATOMA GATE PASS — INCOMPLETE (Warrant); finite-model replay checked, program refinement unproved

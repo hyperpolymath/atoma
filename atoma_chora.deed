@@ -124,12 +124,12 @@
     :project "atoma"
     :ecosystem "hyperpolymath"
     :position-type "verification-tool"
-    :purpose "Experimental source-bound verification for an explicitly closed Zig subset. Solver, model and compiled-test evidence remain distinct from independent proof replay."
+    :purpose "Experimental source-bound obligations and finite-model proof replay for an explicitly closed Zig subset. Source/compiler refinement remains unproved."
     :not ("a general Zig soundness certificate" "a production verifier" "a repository template" "an ECHIDNA replacement")
     :pipeline-position "language-verification"
-    :chain "Zig source and contracts -> Atoma obligations -> ECHIDNA proof exchange and independent replay (planned)"
+    :chain "Zig source and contracts -> Atoma finite-model proof -> ECHIDNA/Coq replay (experimental); full kernel chain planned"
     :coordination echidna
-    (related :name "echidna" :relationship proof-exchange :notes "Planned obligation dispatch and replay; integration is not yet demonstrated.")
+    (related :name "echidna" :relationship proof-exchange :notes "Real Coq backend exercised by the finite-u8 replay gate; general exchange and cross-kernel translation remain planned.")
     (related :name "standards" :relationship standard-source :notes "Estate policy and required verification boundaries; canonical repository metadatastician/standards.")
     (related :name "quintessence" :relationship sibling-verifier :notes "Elixir verification; possible shared Zig native-boundary evidence.")
     (related :name "Apodeixis.jl" :relationship sibling-verifier :notes "Julia verification; possible shared proof evidence interfaces.")

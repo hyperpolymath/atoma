@@ -28,6 +28,14 @@ pub const Expr = union(enum) {
             .add_wrap => |n| try w.print("(bvadd x (_ bv{d} 8))", .{n}),
         }
     }
+
+    fn coq(self: Expr, w: *std.Io.Writer) !void {
+        switch (self) {
+            .input => try w.writeAll("x"),
+            .literal => |n| try w.print("{d}", .{n}),
+            .add_wrap => |n| try w.print("(x + {d}) mod 256", .{n}),
+        }
+    }
 };
 
 pub const Program = struct {
@@ -49,6 +57,44 @@ pub const Program = struct {
         try w.writeAll("; Warrant only: frontend and compiler refinement remain trusted\n(set-logic QF_BV)\n(declare-fun x () (_ BitVec 8))\n(assert (not (= ");
         try self.body.smt(w);
         try w.print(" (bvadd x (_ bv{d} 8)))))\n(check-sat)\n", .{self.ensures_add});
+    }
+
+    /// A closed finite-model theorem, not a Zig/compiler refinement proof or
+    /// a translation of a solver certificate. A wrong body emits a false
+    /// obligation that Coq must reject; no evaluator verdict selects the proof.
+    pub fn emitCoq(self: Program, w: *std.Io.Writer) !void {
+        const hash = std.fmt.bytesToHex(self.source_hash, .lower);
+        try w.print("(* atoma.source.u8.coq.v1 source-blake3:{s} *)\n", .{hash});
+        try w.writeAll("From Coq Require Import Arith List Bool.\nDefinition body (x : nat) : nat := ");
+        try self.body.coq(w);
+        try w.print(".\nDefinition specification (x : nat) : nat := (x + {d}) mod 256.\n", .{self.ensures_add});
+        try w.writeAll(
+            \\Definition domain_check : bool :=
+            \\  forallb (fun x => Nat.eqb (body x) (specification x)) (seq 0 256).
+            \\Lemma domain_checked : domain_check = true.
+            \\Proof. vm_compute. reflexivity. Qed.
+            \\Theorem atoma_u8 : forall x : nat, x < 256 -> body x = specification x.
+            \\Proof.
+            \\  intros x Hx. apply Nat.eqb_eq.
+            \\  assert (Hin : In x (seq 0 256)).
+            \\  { apply in_seq. split; [apply Nat.le_0_l | exact Hx]. }
+            \\  pose proof domain_checked as H.
+            \\  unfold domain_check in H. rewrite forallb_forall in H.
+            \\  exact (H x Hin).
+            \\Qed.
+            \\Print Assumptions atoma_u8.
+            \\
+        );
+    }
+
+    /// Restate the expected theorem from source. Referring to body/specification
+    /// inside the returned library would only check that library against itself.
+    pub fn emitCoqAudit(self: Program, w: *std.Io.Writer) !void {
+        const hash = std.fmt.bytesToHex(self.source_hash, .lower);
+        try w.print("(* atoma.source.u8.audit.v1 source-blake3:{s} *)\n", .{hash});
+        try w.writeAll("From Coq Require Import Arith.\nRequire Import AtomaProof.\nCheck (AtomaProof.atoma_u8 : forall x : nat, x < 256 -> ");
+        try self.body.coq(w);
+        try w.print(" = (x + {d}) mod 256).\nPrint Assumptions AtomaProof.atoma_u8.\n", .{self.ensures_add});
     }
 };
 

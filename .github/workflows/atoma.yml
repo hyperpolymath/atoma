@@ -26,6 +26,8 @@ jobs:
           persist-credentials: false
       - name: Provision pinned proof tools
         run: bash scripts/atoma-ci-toolchain.sh
+      - name: Provision source-model replay tools
+        run: bash scripts/atoma-ci-replay-toolchain.sh
       - name: Run required source, contract and proof checks
         run: bash scripts/atoma-gate.sh
       - name: Preserve evidence even on failure
