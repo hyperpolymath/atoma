@@ -10,11 +10,11 @@ mkdir -p "$task"
 cd "$task"
 sudo apt-get update
 sudo apt-get install -y --no-install-recommends agda-bin=2.6.3-1build1 chezscheme build-essential libgmp-dev curl ca-certificates unzip xz-utils
-curl -fL --retry 3 https://ziglang.org/download/0.15.2/zig-x86_64-linux-0.15.2.tar.xz -o zig.tar.xz
+curl --proto '=https' --proto-redir '=https' -fL --retry 3 https://ziglang.org/download/0.15.2/zig-x86_64-linux-0.15.2.tar.xz -o zig.tar.xz
 echo '02aa270f183da276e5b5920b1dac44a63f1a49e55050ebde3aecc9eb82f93239  zig.tar.xz' | sha256sum -c -
 tar -xf zig.tar.xz
 echo "$task/zig-x86_64-linux-0.15.2" >> "$GITHUB_PATH"
-curl -fL --retry 3 https://github.com/Z3Prover/z3/releases/download/z3-4.13.3/z3-4.13.3-x64-glibc-2.35.zip -o z3.zip
+curl --proto '=https' --proto-redir '=https' -fL --retry 3 https://github.com/Z3Prover/z3/releases/download/z3-4.13.3/z3-4.13.3-x64-glibc-2.35.zip -o z3.zip
 echo '32c7377026733c9d7b33c21cd77a68f50ba682367207b031a6bfd80140a8722f  z3.zip' | sha256sum -c -
 unzip -q z3.zip
 echo "$task/z3-4.13.3-x64-glibc-2.35/bin" >> "$GITHUB_PATH"

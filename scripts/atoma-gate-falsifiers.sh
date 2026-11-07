@@ -51,13 +51,15 @@ for command in source-check source-vc; do
     for input in absent.zig syntax.zig too-large.zig; do
         rc=0
         "$atoma" "$command" "$tmp/$input" > "$tmp/out" 2>&1 || rc=$?
-        [[ "$rc" == 3 ]] || { echo "FAIL $command $input exit=$rc, expected I/O/parse exit 3"; exit 1; }
+        [[ "$rc" == 3 ]] || { echo "FAIL $command $input exit=$rc, expected I/O/parse exit 3" >&2; exit 1; }
     done
 done
-rc=0
-"$atoma" source-vc "$root/examples/atoma/source-u8/increment.zig" > /dev/full 2> "$tmp/out" || rc=$?
-[[ "$rc" == 3 ]] || { echo "FAIL output write error exit=$rc, expected 3"; exit 1; }
-grep -q SOURCE-IO-ERROR "$tmp/out"
+for command in source-check source-vc; do
+    rc=0
+    "$atoma" "$command" "$root/examples/atoma/source-u8/increment.zig" > /dev/full 2> "$tmp/out" || rc=$?
+    [[ "$rc" == 3 ]] || { echo "FAIL $command output write error exit=$rc, expected 3" >&2; exit 1; }
+    grep -q SOURCE-IO-ERROR "$tmp/out"
+done
 echo 'falsifier PASS source command input/output errors are distinct from verification failures'
 
 mkdir -p "$tmp/verification/atoma/agda" "$tmp/verification/proofs/agda"

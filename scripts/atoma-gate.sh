@@ -33,6 +33,7 @@ for prover in agda idris2; do
     case "$prover" in
         agda) dir=verification/atoma/agda; ext=agda ;;
         idris2) dir=examples/atoma/frame-v1/abi; ext=idr ;;
+        *) echo "FAIL unregistered prover: $prover" >&2; exit 1 ;;
     esac
     awk -F '|' -v dir="$dir" '$1 == dir { if ($3 != "gated") exit 1; print $1 "/" $2 }' \
         "verification/proofs/$prover/MANIFEST" | sort > "$evidence/$prover-listed.txt"

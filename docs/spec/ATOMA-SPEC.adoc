@@ -579,7 +579,7 @@ stack in bytes, computed from the largest simultaneously-live frame.
 | `MkField "crc" 8 4 4` | `crc: u32` at offset 8 | layout equality | comptime witness
 | `Aligned 16 4` | `@sizeOf(FrameHeader) = 16`, `@alignOf = 4` | layout equality | comptime witness
 | `MkBounds (Add (Num 12) (Mul (Num 8) (Len "input"))) 64` | the two loops | MaxPlus bound | QF_LIA (`V4`)
-| `%foreign "C:atoma_frame_parse,libatoma"` | `export fn atoma_frame_parse` | symbol identity | seam gate
+| `consumeModel : (1 h : Handle) -> (1 out : OutLease) -> ()` | No executable foreign binding | QTT resource model only | Idris typecheck and drop/duplicate negatives
 |===
 
 Two rules make the table enforceable rather than aspirational:
@@ -1118,17 +1118,19 @@ frameParse = MkContract
   , bounds = MkBounds (Add (Num 12) (Mul (Num 8) (Len "input"))) 64 }
 ----
 
-The linear wrapper makes the QTT discipline operational:
+The resource model checks linear consumption within Idris:
 
 [source,idris]
 ----
-parseFrame : (1 h : Handle) -> (0 ghostLen : Nat) -> (1 out : PtrOutFrame)
-          -> IO (Either Bits32 ())
+consumeModel : (1 h : Handle) -> (1 out : OutLease) -> ()
 ----
 
-`1` on `h` and `out` means an implementation that drops or duplicates either is a
-type error. `0` on `ghostLen` means the length proof erases and costs nothing at
-runtime.
+`1` on `h` and `out` makes dropping or duplicating either model resource a
+type error; the negative examples are typechecked. These constructors are not
+native pointer types, and this function does not call Zig. An executable binding
+must separately implement the actual four-argument C ABI, its result code,
+writable/disjoint output lease and resource lifecycle. No executable QTT or
+foreign-symbol identity guarantee is established by this model.
 
 The layout is declared, not derived:
 
