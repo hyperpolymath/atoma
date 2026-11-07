@@ -6,6 +6,7 @@ root=$(cd "$(dirname "$0")/.." && pwd)
 cd "$root"
 export ATOMA=${ATOMA:-$root/tools/atoma/zig-out/bin/atoma}
 export ECHIDNA=${ECHIDNA:-echidna} COQC=${COQC:-coqc} COQCHK=${COQCHK:-coqchk}
+mkdir -p "$root/build/atoma-evidence"
 work=$(mktemp -d "$root/build/atoma-evidence/replay.XXXXXX")
 pilot="$root/examples/atoma/source-u8"
 replay="$root/scripts/atoma-replay.sh"
