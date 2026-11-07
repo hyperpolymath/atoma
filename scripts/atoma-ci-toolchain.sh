@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: MPL-2.0
+# SPDX-FileCopyrightText: 2026 Jonathan D.A. Jewell <j.d.a.jewell@open.ac.uk>
 # Bounded CI provisioning deviation; see docs/decisions/ATOMA-TOOLCHAIN.adoc.
 set -euo pipefail
 : "${RUNNER_TEMP:?GitHub runner scratch directory required}"
@@ -21,7 +23,7 @@ git -C Idris2 remote add origin https://github.com/idris-lang/Idris2.git
 git -C Idris2 fetch --depth 1 origin 15a3e4e70843f7a34100f6470c04b791330788df
 git -C Idris2 checkout --detach FETCH_HEAD
 [[ $(git -C Idris2 rev-parse HEAD) == 15a3e4e70843f7a34100f6470c04b791330788df ]]
-make -C Idris2 bootstrap SCHEME=scheme -j2
+make -C Idris2 bootstrap SCHEME=scheme PREFIX="$task/idris2" -j2
 make -C Idris2 install PREFIX="$task/idris2"
 echo "$task/idris2/bin" >> "$GITHUB_PATH"
 dpkg-query -W agda-bin chezscheme libgmp-dev

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MPL-2.0
+// SPDX-FileCopyrightText: 2026 Jonathan D.A. Jewell <j.d.a.jewell@open.ac.uk>
 //! Experimental source-bound u8 pilot. This is deliberately a closed language:
 //! one export, one u8 input, one return, and an equality postcondition. Anything
 //! else is refused. Parsing/lowering and this evaluator are still trusted;

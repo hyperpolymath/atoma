@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: MPL-2.0
+# SPDX-FileCopyrightText: 2026 Jonathan D.A. Jewell <j.d.a.jewell@open.ac.uk>
 # Typecheck the normative contract and QTT negatives, then execute its encoder.
 set -euo pipefail
 root=$(cd "$(dirname "$0")/.." && pwd)

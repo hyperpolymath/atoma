@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: MPL-2.0
+# SPDX-FileCopyrightText: 2026 Jonathan D.A. Jewell <j.d.a.jewell@open.ac.uk>
 # Exercise the gate's failure paths in a disposable tree, never the checkout.
 set -euo pipefail
 root=$(cd "$(dirname "$0")/.." && pwd)

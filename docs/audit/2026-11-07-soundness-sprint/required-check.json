@@ -1,0 +1,1 @@
+{"name":"Atoma soundness gate","target":"branch","enforcement":"active","bypass_actors":[],"conditions":{"ref_name":{"exclude":[],"include":["refs/heads/main"]}},"rules":[{"type":"required_status_checks","parameters":{"required_status_checks":[{"context":"Atoma soundness gate","integration_id":15368}],"strict_required_status_checks_policy":true}}]}

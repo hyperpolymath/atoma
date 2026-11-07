@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: CC-BY-SA-4.0
+// SPDX-FileCopyrightText: 2026 Jonathan D.A. Jewell <j.d.a.jewell@open.ac.uk>
 = Atoma soundness repair: evidence and limits
 :revdate: 2026-11-07
 
@@ -74,6 +76,21 @@ edit was present in that run.
 
 == Hosted validation
 
-Pending PR execution at preparation time. The PR description and final update
-must identify the actual Atoma workflow result, required-check enforcement and
-any unrelated failing estate checks; never infer a pass from the local run.
+https://github.com/hyperpolymath/atoma/pull/2[PR #2] carries hosted validation.
+The initial workflow linter found missing SPDX metadata on the newly created
+workflow; new files now carry the repository's existing code/document
+declarations. Bootstrap and installation also use the same Idris prefix.
+No existing licence terms or declarations are changed.
+
+The active https://github.com/hyperpolymath/atoma/rules/26764574[Atoma soundness
+ruleset] requires `Atoma soundness gate` from GitHub Actions (integration
+15368) on `main`, with strict up-to-date checking and no bypass actors. The
+existing Branch-Floor rule remains active. Hosted proof-tool execution was
+pending while preparing this report; the PR description/final update records
+the observed result and unrelated failing estate checks. A local pass is not
+a substitute for that result.
+
+Commits use GitHub's authenticated automatically signed commit API. Signature
+validity was checked through the API and independently with the official
+GitHub public signing key in an isolated keyring (`SIGNATURE_STATUS=G`);
+the user's normal keyring and signing configuration were not changed.
