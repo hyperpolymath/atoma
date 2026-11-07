@@ -1,0 +1,10 @@
+=== RSR Compliance Check ===
+RSR compliance: PASS
+PASS: no unfilled {{PLACEHOLDER}} tokens
+actions.lock is in sync and transitively closed:
+  * every uses: is locked under its own workflow path (job-level reusable refs included)
+  * every lockfile entry is still referenced
+  * every ref named in the lockfile resolves to a dependencies: record (0 dangling edges)
+  * every workflow file has a lockfile key (zero-uses: workflows included)
+  note: 1 dependencies: record(s) are unreferenced - harmless, but prunable.
+MERGE PREFLIGHT PASS: RSR structure, placeholders, locks, shell errors, source evidence
