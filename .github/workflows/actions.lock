@@ -60,12 +60,12 @@ workflows:
     '.github/workflows/ossf-best-practices.yml':
         - 'actions/checkout@v7.0.1'
     '.github/workflows/pages.yml':
-        - 'actions/cache@v6.1.0'
-        - 'actions/checkout@v7.0.1'
-        - 'actions/configure-pages@v6.0.0'
-        - 'actions/deploy-pages@v5.0.1'
-        - 'actions/upload-pages-artifact@v5.0.0'
-        - 'haskell-actions/setup@v2.12.1'
+        - 'actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9'
+        - 'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1'
+        - 'actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d'
+        - 'actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346'
+        - 'actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9'
+        - 'haskell-actions/setup@0f8e8c99d88aeb3fbfd523f1ef2c6f762d10d64d'
     '.github/workflows/proven-tests.yml':
         - 'actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9'
         - 'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1'
@@ -138,11 +138,21 @@ dependencies:
         commit: 'sha1-3d3c42e5aac5ba805825da76410c181273ba90b1'
         owner_id: 44036562
         repo_id: 197814629
+    'actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d':
+        ref: 'v6.0.0'
+        commit: 'sha1-45bfe0192ca1faeb007ade9deae92b16b8254a0d'
+        owner_id: 44036562
+        repo_id: 513659658
     'actions/configure-pages@v6.0.0':
         ref: 'v6.0.0'
         commit: 'sha1-45bfe0192ca1faeb007ade9deae92b16b8254a0d'
         owner_id: 44036562
         repo_id: 513659658
+    'actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346':
+        ref: 'v5.0.1'
+        commit: 'sha1-368f82528645a54fb793d4d04e342629a3f51346'
+        owner_id: 44036562
+        repo_id: 438112499
     'actions/deploy-pages@v5.0.1':
         ref: 'v5.0.1'
         commit: 'sha1-368f82528645a54fb793d4d04e342629a3f51346'
@@ -168,6 +178,13 @@ dependencies:
         commit: 'sha1-cf430e030ddbb5b0abf93d22962f4752f3646cd9'
         owner_id: 44036562
         repo_id: 192625955
+    'actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9':
+        ref: 'v5.0.0'
+        commit: 'sha1-fc324d3547104276b827a68afc52ff2a11cc49c9'
+        owner_id: 44036562
+        repo_id: 496012378
+        uses:
+            - 'actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f'
     'actions/upload-pages-artifact@v5.0.0':
         ref: 'v5.0.0'
         commit: 'sha1-fc324d3547104276b827a68afc52ff2a11cc49c9'
@@ -195,6 +212,11 @@ dependencies:
         commit: 'sha1-9b3254085494b55a0f7c4c2b3d2d52cc712ce370'
         owner_id: 9919
         repo_id: 259445878
+    'haskell-actions/setup@0f8e8c99d88aeb3fbfd523f1ef2c6f762d10d64d':
+        ref: 'v2.12.1'
+        commit: 'sha1-0f8e8c99d88aeb3fbfd523f1ef2c6f762d10d64d'
+        owner_id: 75048950
+        repo_id: 623796603
     'haskell-actions/setup@v2.12.1':
         ref: 'v2.12.1'
         commit: 'sha1-0f8e8c99d88aeb3fbfd523f1ef2c6f762d10d64d'
