@@ -11,7 +11,7 @@
 # image builds with no dev-container features (registry-hosted features can
 # vanish or turn private, and then nobody can start the container).
 
-FROM cgr.dev/chainguard/wolfi-base:latest
+FROM cgr.dev/chainguard/wolfi-base@sha256:1f6b749929164c3d9e7cad0289254f39b2ba51e1dddaeb0fa57532ea03f2db31
 
 # Install common development tools
 RUN apk update && apk add --no-cache \
