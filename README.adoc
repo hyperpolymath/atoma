@@ -53,7 +53,7 @@ the typed semantic boundary, an alias counterexample and checked refinement.
 The link:docs/decisions/ATOMA-SIBLING-TRANSFER.adoc[sibling assessment] explains
 potential reuse with Quintessence, Apodeixis.jl and Bactrian.
 
-See link:docs/architecture.adoc[architecture],
+See link:docs/ARCHITECTURE.adoc[architecture],
 link:docs/MAINTAINERS.adoc[maintainers],
 link:.github/SECURITY.md[security reporting] and
 link:CONTRIBUTING.adoc[contributing].
