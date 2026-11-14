@@ -78,5 +78,5 @@ Be explicit:
 
 == See also
 
-* link:./architecture.adoc[Architecture] — how it works internally.
+* link:./ARCHITECTURE.adoc[Architecture] — how it works internally.
 * link:./troubleshooting.adoc[Troubleshooting] — when things go wrong.
