@@ -21,7 +21,7 @@ predecessors did.
 | yes
 | code-hygiene gate allowlist; template scaffolds are seams, not debt
 
-| `.claude`
+| `.claude/`
 | optional
 | Claude Code project state (checkpoints, history) — created by the tool itself
 
