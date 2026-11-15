@@ -157,3 +157,36 @@ the scaffold aspect script does not demonstrate coverage of these paths.
 Exercise sequences across aspects, not isolated checklists. Record reusable
 lessons in `docs/decisions/ATOMA-SIBLING-TRANSFER.adoc`; extract a shared engine
 only after a second language demonstrates the same semantic boundary.
+
+== Execution model and family links
+
+Added 2026-11-15. The stages, gates and task IDs above do not change.
+
+The work that Atoma shares with its sibling verifiers (`quintessence`,
+`Apodeixis.jl`, `bactrian`, `canonry`, `chancel`) is in
+link:FAMILY-ULTRAPLAN.adoc[the family plan]. That plan holds the shared work
+packages F1 to F12, the waves W0 to W5, the model roles and the effort scale.
+Atoma is the pathfinder: each shared package is done here first.
+
+Measured on 2026-11-15: `zig build test` in `tools/atoma` gave 24 of 24 passed
+(Zig 0.15.2). `verification/atoma/check-agda.sh` gave 4 modules, 0 postulates
+and 0 holes (Agda 2.6.3). `scripts/atoma-gate.sh` was not run in that session;
+the hosted workflow is the evidence for it.
+
+[cols="1,2,1,1,3",options="header"]
+|===
+| Stage | Family wave and packages | Lead | Size | Notes
+| R0 | W0 | Sonnet | S | Done, apart from the inherited template drift (F1).
+| R1 | W1 and W2: F3, F6, F7 | Opus | L | Extract the evidence kit from the replay scripts here. Then finish the alias counterexample and the typed boundary.
+| R2 | W2 and W3 | Opus | XL (split first) | Tasks S1 to S6 and T6. Sonnet implements from Opus briefs.
+| R3 | W3: F8 | Opus, advisor review | XL (split first) | Tasks T1 to T4 and T7. Proof work. `quintessence` and `bactrian` become consumers of the Zig seam.
+| R4 | W4: F7 exchange, F11 | Opus | L | Tasks K1 to K9. The Agda modules get receipts, then the Rocq and Lean legs.
+| R5 | W5: F12 | Opus for pilots; Sonnet for release | L | Tasks H1 to H6.
+|===
+
+Size `S` is one agent session, `M` is 2 to 4, `L` is 5 to 10, and `XL` is
+more than 10 and must be split before it starts. Haiku runs the scout pass
+before each step and does the mechanical edits. The advisor reviews the close
+of each stage and each change to a status word. The person-week ranges in the
+sequence table above stay the planning basis; the sizes here only order the
+agent work.

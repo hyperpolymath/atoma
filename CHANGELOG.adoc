@@ -53,8 +53,21 @@ to end, plus the plan for the phases after it.
   source "GitHub Actions"; `pages.yml` lost its `push` and `workflow_dispatch`
   triggers. The helper's old `publish` route is no longer used by any workflow
   and is left in place for a follow-up removal.
+* Soundness repair (2026-11-07): the gate clears valid writable outputs before
+  wrapper-level errors, and its tests start with poisoned bytes. The 14-byte
+  field extent within a 16-byte struct is corrected, and the invalid foreign
+  binding is removed. Experimental: the evidence report records observed
+  results only.
 
 ==== Added
+
+* Source-bound u8 pilot (experimental): `source-vc` and `source-coq` lower a
+  closed Zig u8 fragment. The generated Coq theorem covers all 256 inputs.
+  Only the tiny closed fragment is covered; the general Zig subset is not.
+* Finite-model replay (experimental): the generated Coq proof runs through
+  ECHIDNA `prove --output json`, an independent `coqchk` pass and a
+  no-axioms audit. The receipt status is always `INCOMPLETE`. Compiler,
+  refinement and full Dedukti/Coq/Lean4 chain arguments remain open.
 
 * **Chain minting: a minted repo can be minted again.** "Use this template"
   on a minted repo now mints correctly (owner ruling 2026-11-04, after the
