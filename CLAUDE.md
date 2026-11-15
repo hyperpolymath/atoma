@@ -39,7 +39,7 @@ The descriptive family (working name *descriptiles*) describes what-is; the **co
 
 | File | Answers |
 |---|---|
-| `atoma_chora.deed` | **CHORA**, the repo deed. Its `(identity)` `(clade)` `(lineage)` clauses say what this repo IS (registers into `gv-clade-index`); `(meta)` the architecture axes; `(agentic)` *may I act now?*; `(ecosystem)` where it sits and what it is not; `(status)` and `(maturity)` where it is now. Read fields with `scripts/deed-field.sh`. |
+| `atoma_chora.deed` | **CHORA**, the repo deed. Its header `:repo-uuid` is the repo's one id, and `(identity)` and `(lineage)` say what this repo IS; a `(clade)` clause, when present, records the repo's clade placements: identity facts about where it sits, never its id and never an edict. chora-registry (formerly `gv-clade-index`) is authoritative for them; this repo's validation checks only that a declared clade is one of the 12 shelves; `(meta)` the architecture axes; `(agentic)` *may I act now?*; `(ecosystem)` where it sits and what it is not; `(status)` and `(maturity)` where it is now. Read fields with `scripts/deed-field.sh`. |
 | `(anchor)` | *Semantic authority + golden path* — what downstream may extend-not-redefine; if a recognised-drift / re-anchor marker is present, it **supersedes** accumulated context — read it first. |
 | `(neurosym)` | *Meaning* of operations — proof obligations. |
 | `(playbook)` | *How* permitted actions run. |
@@ -48,7 +48,15 @@ The descriptive family (working name *descriptiles*) describes what-is; the **co
 | k9 | *Validation*. Kennel (data) / Yard (pure eval) / Hunt (guarded exec). |
 
 ## Canon pointers
-- `hyperpolymath/standards` — the canon source. · `hyperpolymath/gv-clade-index` — the estate map (identity registry). · `hyperpolymath/manifesto` — this doctrine.
+Estate data-format route: **kyq** handles exactly **TOML, Dhall, KYAML,
+I-JSON/JCS**. Preserve TOML/Dhall; migrate YAML/YML to KYAML and JSON variants
+through kyq using **hyperpolymath/ijson-jcs**, the actual estate implementation
+repository. **kyX** owns wider projection. DEED/K9/coordination keep their own
+grammars. Canon: `metadatastician/standards/3-practice/DATA-FORMAT-ROUTING.adoc`.
+Planned support is not operational evidence: retain explicit transitional
+checks until a pinned kyq executable passes positive and negative tests.
+
+- `hyperpolymath/standards` — the canon source. · `hyperpolymath/gv-clade-index` (being renamed chora-registry) — the estate registry of repo identities and classification schemes. · `hyperpolymath/manifesto` — this doctrine.
 - **Before you invent, rename, or consolidate anything: STOP and check the map + IS-NOT.**
 
 ## Estate language policy (overridable per-repo via AGENTIC)
@@ -59,16 +67,56 @@ Use plain JavaScript when this tooling is needed. TypeScript and ReScript migrat
 ## Asking the owner
 Put every question that needs the owner's decision through the selector (the AskUserQuestion tool), not as prose at the end of a report. Batch up to four per call, offer concrete options with the recommended one first, and say what each option would cause.
 
+## Proofs — which prover for which obligation
+
+Normative source: `3-practice/PROOF-POLICY.adoc` in `hyperpolymath/standards`.
+Read it there; `verification/proofs/README.adoc` maps it onto this repo.
+
+| Code or obligation | Verifier |
+|---|---|
+| Rust code | **Creusot** with **Pearlite** contracts, and **Verus**, by default and on the code (§1.2). Kani for `unsafe`/FFI seams and Aeneas for Rust that implements an Agda theorem run alongside, never instead |
+| Ada code | **SPARK** |
+| APIs, ABIs, engineering properties | **Idris2** |
+| Theory | **Agda**, rechecked in **Rocq** and **Lean** (no Mathlib) |
+
+Always name Creusot, Pearlite and Verus in Rust verification plans and in
+`docs/status/PROOF-STATUS.adoc`. Pearlite is Creusot's specification
+language, not a third verifier. Plan scopes for both verifiers, and record
+any that is unsupported, inapplicable or not yet run, with its reason; never
+present an unexecuted check as a pass. Using both does not make two
+independent witnesses (policy §1.2).
+
+Third-party code (crates such as Bevy, libraries, forks) is **not** converted
+or re-proved. Where a proof relies on a dependency the prover does not check,
+state the reliance as an `ASSUMED` boundary specification. Where the
+dependency's whole import cone compiles under the prover's safe mode with zero
+postulates, it is *checked, not assumed*: record the cone (root module, flags,
+postulate count of zero, library name, version and pin) instead of an
+`ASSUMED` row (policy §1.1). A cone with a postulate, or compiled outside safe
+mode, is not checked. When choosing between dependencies that fit equally
+well, prefer one that carries its own verification. A preference, not a gate.
+
+Proof Witness Grades are policy §8. They apply to *theory* theorems only: Agda
+source, rechecked in Rocq and Lean (§8.1). Engineering proofs (Creusot, Verus,
+SPARK, Idris2) are not graded on this ladder; they use the §5 tokens only. For
+a theory theorem, `PWG-3` < `PWG-2i` < `PWG-2ii` < `PWG-1`, where `PWG-1` is
+strongest. A theorem that does not reach `PWG-3` is `ungraded`, with no
+qualifier. A grade is derived from receipts, never asserted. A "verified" or
+"machine-checked" claim needs current receipts. Report a census with its
+denominator, never a percentage. Always write the `PWG-` prefix: CRG, TRG, ARG
+and FRG letters, and ECHIDNA's `TrustLevel`, are different schemes.
+
 ---
 
-# This repo: `atoma`  ·  clade `fv-atoma`
+# This repo: `atoma`
 
-- **Identity** — uuid `#u8"gv-clade-index:github.com/hyperpolymath/atoma"`; clade `fv` (secondary ``); born 2026-10-22; forge `hyperpolymath/atoma`.
+- **Identity** — chora id `#u8"gv-clade-index:github.com/hyperpolymath/atoma"`; clade: fv (placement); born 2026-10-22; forge `hyperpolymath/atoma`.
 - **IS** — Experimental source-bound obligations and finite-model proof replay for an explicitly closed Zig subset. Source/compiler refinement remains unproved.
 - **IS-NOT** — a general Zig soundness certificate · a production verifier · a repository template · an ECHIDNA replacement
 - **Where it sits** — pipeline position **language-verification**; chain `Zig source and contracts -> Atoma finite-model proof -> ECHIDNA/Coq replay (experimental); full kernel chain planned`; coordination = `echidna`.
 - **Constraints here** (AGENTIC) — fail-closed; evidence-per-step; no-silent-skip; rerun-after-fix; release-claim-requires-hard-pass. Never: banned langs (above), secrets, state files in repo root, AGPL. Details: the deed's `(bot-directives (methodology) (coverage) (debt))` clauses.
 - **Golden path** (ANCHOR) — `just test && just quality` → Core tests pass; Quality gates pass; No unresolved critical security findings.
+- **Anchor override** (ANCHOR) — This repo's anchor forbids: Node.js, npm. The anchor overrides the estate policy above.
 - **State** — phase active; maturity experimental. Milestones and next actions: `docs/status/ROADMAP.adoc`.
 
 <!-- ARRIVAL-PACK:END · provenance: DEED@215b0dc7f361 ANCHOR@c1206073e239 · Manifesto@DRAFT-unratified · regenerate: `just claude-md` (k9 drift-detects; do not hand-edit above) -->
@@ -116,43 +164,3 @@ hand; that migration is done per repo (ADR-008 phase P3). In deed files use
 **ENFORCEMENT:** these rulings are recorded on `standards#787`. Some are
 ruled but not yet gated: check the gate on `standards` main before
 relying on it.
-
-<!-- Hand-authored (owner ruling 2026-10-26): kept below the generated region. -->
-## Proofs — which prover for which obligation
-
-Normative source: `3-practice/PROOF-POLICY.adoc` in `hyperpolymath/standards`.
-Read it there; `verification/proofs/README.adoc` maps it onto this repo.
-
-| Code or obligation | Verifier |
-|---|---|
-| Rust code | **Creusot** with **Pearlite** contracts, and **Verus**, by default and on the code (§1.2). Kani for `unsafe`/FFI seams and Aeneas for Rust that implements an Agda theorem run alongside, never instead |
-| Ada code | **SPARK** |
-| APIs, ABIs, engineering properties | **Idris2** |
-| Theory | **Agda**, rechecked in **Rocq** and **Lean** (no Mathlib) |
-
-Always name Creusot, Pearlite and Verus in Rust verification plans and in
-`docs/status/PROOF-STATUS.adoc`. Pearlite is Creusot's specification
-language, not a third verifier. Plan scopes for both verifiers, and record
-any that is unsupported, inapplicable or not yet run, with its reason; never
-present an unexecuted check as a pass. Using both does not make two
-independent witnesses (policy §1.2).
-
-Third-party code (crates such as Bevy, libraries, forks) is **not** converted
-or re-proved. Where a proof relies on a dependency the prover does not check,
-state the reliance as an `ASSUMED` boundary specification. Where the
-dependency's whole import cone compiles under the prover's safe mode with zero
-postulates, it is *checked, not assumed*: record the cone (root module, flags,
-postulate count of zero, library name, version and pin) instead of an
-`ASSUMED` row (policy §1.1). A cone with a postulate, or compiled outside safe
-mode, is not checked. When choosing between dependencies that fit equally
-well, prefer one that carries its own verification. A preference, not a gate.
-
-Proof Witness Grades are policy §8. They apply to *theory* theorems only: Agda
-source, rechecked in Rocq and Lean (§8.1). Engineering proofs (Creusot, Verus,
-SPARK, Idris2) are not graded on this ladder; they use the §5 tokens only. For
-a theory theorem, `PWG-3` < `PWG-2i` < `PWG-2ii` < `PWG-1`, where `PWG-1` is
-strongest. A theorem that does not reach `PWG-3` is `ungraded`, with no
-qualifier. A grade is derived from receipts, never asserted. A "verified" or
-"machine-checked" claim needs current receipts. Report a census with its
-denominator, never a percentage. Always write the `PWG-` prefix: CRG, TRG, ARG
-and FRG letters, and ECHIDNA's `TrustLevel`, are different schemes.
