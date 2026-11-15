@@ -6,6 +6,44 @@
 Evidence remains *INCOMPLETE / Warrant*. Counts below describe scoped checks;
 they are not a fraction of Zig soundness or a release-readiness percentage.
 
+== Vocabulary
+
+Policy definitions from `standards/3-practice/PROOF-POLICY.adoc`, carried here so
+the words used in this file mean one thing. They are not statements about Atoma's
+proofs.
+
+* *Status token* (§5): `proven`, `proven-with-postulates`, `tested-only`,
+  `argued`, `open`.
+* *PWG* (§8), always written with its prefix, never as a bare "Grade":
+** `PWG-3`: the Agda proof is `proven` under the canonical §2.1 invocation,
+   `agda --safe --without-K --cubical-compatible`;
+** `PWG-2i`: one recheck leg also counts (Rocq or Lean);
+** `PWG-2ii`: both legs count;
+** `PWG-1`: every counted witness has a current receipt for the exact commit;
+** `ungraded`: a theory row below `PWG-3`, or any row with no receipt yet, an
+   `open` row included, whether it is a theory theorem or an engineering
+   obligation;
+** `n/a`: not on the ladder once it has a result: a test, a refusal fixture, an
+   assumption, or a discharged engineering proof in Idris2, SPARK, Creusot or
+   Verus. §8.1 puts these off the ladder. An `open` engineering obligation is not `n/a`: an `open` engineering
+   obligation stays `ungraded` until it has a receipt.
+* *Recheck legs* (§2): `transported`, `re-proved`, `waived` or `unavailable`,
+  each with its §2.2 correspondence state, for example `BRIDGE-PENDING` or
+  `RECONCILED`. A leg counts towards a grade only when it is `RECONCILED`.
+
+A grade is derived from receipts, not asserted (§8.4). Name the receipt in the
+table, and a claim that has none stays `ungraded`. `PWG-3` is not a discharge:
+a theorem at `PWG-3` still owes both legs.
+
+== Claims
+
+NOTE: *Interim shape.* The table below is Atoma's own scoped-evidence summary, as
+authored. It is *not yet* in the per-claim schema of PROOF-POLICY §8.5 (ID, status
+token, PWG, recheck legs, receipt). No status token and no PWG grade has been
+assigned to any row here, and none should be read from it; those come from
+receipts and are the proof owner's to record. Until the rows are converted, the
+estate census cannot read this table as claims.
+
 [cols="2,3,3",options="header"]
 |===
 | Surface | Checked evidence | Limit
