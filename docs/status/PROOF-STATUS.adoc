@@ -6,6 +6,59 @@
 Evidence remains *INCOMPLETE / Warrant*. Counts below describe scoped checks;
 they are not a fraction of Zig soundness or a release-readiness percentage.
 
+== Vocabulary
+
+Policy definitions from `standards/3-practice/PROOF-POLICY.adoc`, carried here so
+the words used in this file mean one thing. They are not statements about Atoma's
+proofs.
+
+* *Status token* (§5): `proven`, `proven-with-postulates`, `tested-only`,
+  `argued`, `open`.
+* *PWG* (§8), always written with its prefix, never as a bare "Grade":
+** `PWG-3`: the Agda proof is `proven` or `proven-with-postulates` under the
+   canonical §2.1 invocation, `agda --safe --without-K --cubical-compatible`,
+   and no recheck leg counts yet;
+** `PWG-2i`: one recheck leg also counts (Rocq or Lean);
+** `PWG-2ii`: both legs count;
+** `PWG-1`: `PWG-2ii`, plus every counted witness (Agda, Rocq and Lean) has a
+   current receipt from a headless, isolated, pinned checker run on the exact
+   source commit;
+** `ungraded`: a theory row below `PWG-3`, or any row with no receipt yet, an
+   `open` row included, whether it is a theory theorem or an engineering
+   obligation;
+** `n/a`: not on the ladder once it has a result: a test, a refusal fixture, an
+   assumption, or a discharged engineering proof in Idris2, SPARK, Creusot or
+   Verus. §8.1 puts these off the ladder. An `open` engineering obligation is not `n/a`: an `open` engineering
+   obligation stays `ungraded` until it has a receipt.
+* *Recheck legs* (§2): `transported`, `re-proved`, `waived` or `unavailable`,
+  each with its §2.2 correspondence state, for example `BRIDGE-PENDING` or
+  `RECONCILED`. A leg counts towards a grade only when it is `RECONCILED`.
+
+A grade is derived from receipts, not asserted (§8.4). Name the receipt in the
+table, and a claim that has none stays `ungraded`. `PWG-3` is not a discharge:
+a theorem at `PWG-3` still owes both legs.
+
+== Claims
+
+NOTE: *Not yet converted.* Atoma's proof status has not been converted to the
+per-claim schema of PROOF-POLICY §8.5 (ID, status token, PWG, recheck legs,
+receipt). The single row below is a placeholder, not a claim: no status token and
+no PWG grade has been assigned to anything in this file, and none should be read
+from it. Those come from receipts and are the proof owner's to record. Atoma's
+own scoped-evidence summary follows under its own heading; it is not a claims
+table, and the estate census cannot read it as claims.
+
+[cols="1,3,1,1,1,1,2",options="header"]
+|===
+| ID | Claim (and the artefact that proves or tests it) | Token | PWG | Rocq leg | Lean leg | Receipt
+
+| — | Not yet recorded in this schema; see the interim summary below | — | — | — | — | —
+|===
+
+== Interim summary (not claims)
+
+Atoma's scoped-evidence summary, kept exactly as authored.
+
 [cols="2,3,3",options="header"]
 |===
 | Surface | Checked evidence | Limit
