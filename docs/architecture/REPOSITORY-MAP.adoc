@@ -81,6 +81,10 @@ predecessors did.
 | yes
 | git reads .mailmap from the worktree root only
 
+| `.uuid-v8-exempt`
+| optional
+| scripts/check-uuid-v8.sh reads this exact root path: the negative-control tests that hold #u5 on purpose (owner-approved 2026-11-14)
+
 | `CHANGELOG.adoc`
 | yes
 | AsciiDoc is the estate-standard documentation format

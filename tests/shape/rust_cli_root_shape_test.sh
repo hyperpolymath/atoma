@@ -79,6 +79,10 @@ done
 bash "$REPO/scripts/render-mise.sh" --root "$R" >/dev/null || fail "render-mise failed on a rust tree"
 [ -s "$R/mise.lock" ] || fail "render-mise deleted mise.lock (root-allow.txt requires it)"
 grep -qE '^rust = ' "$R/mise.toml" || fail "precondition: rust is not in the rendered toolchain"
+# The copyright line of the file being replaced survives the render.
+cmp -s <(grep '^# SPDX-FileCopyrightText:' "$REPO/mise.toml") \
+       <(grep '^# SPDX-FileCopyrightText:' "$R/mise.toml") \
+    || fail "render-mise dropped or changed the SPDX-FileCopyrightText line"
 grep -qE '^zig = ' "$R/mise.toml" && fail "precondition: zig is still declared"
 for tool in zig trivy; do
     ! grep -qF "tools.$tool" "$R/mise.lock" || fail "lock still pins dropped tool $tool"
