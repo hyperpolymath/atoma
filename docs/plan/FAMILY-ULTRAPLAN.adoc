@@ -1,0 +1,326 @@
+// SPDX-License-Identifier: CC-BY-SA-4.0
+// SPDX-FileCopyrightText: 2026 Jonathan D.A. Jewell <j.d.a.jewell@open.ac.uk>
+= Verifier family: shared plan to v1.0.0
+:revdate: 2026-11-15
+:toc:
+:toclevels: 2
+
+This plan covers six sibling verifier repositories. It holds the work that is
+the same in more than one of them. Each repository keeps its own plan for the
+work that only it can do, at `docs/plan/ULTRAPLAN.adoc`.
+
+[cols="1,1,3",options="header"]
+|===
+| Repository | Target | Role in the family
+| `atoma` | Zig | Pathfinder. It has the strongest evidence discipline today.
+| `quintessence` | Elixir/OTP | Most code. Weakest evidence integrity today.
+| `Apodeixis.jl` | Julia | Source-policy audit only. Clean tests.
+| `bactrian` | OCaml, BEAM actors, FFI | Design documents and a readiness preflight.
+| `canonry` | Agda theory for Chapel arrays | One checked theory module.
+| `chancel` | Chapel front end (Rust) | Placeholder crate.
+|===
+
+This file lives in `atoma` because `docs/decisions/ATOMA-SIBLING-TRANSFER.adoc`
+already makes `atoma` the first slice. The owner can move it. The repositories
+stay separate. Nothing here merges them.
+
+== Status vocabulary
+
+A statement in this plan is *measured* only if a command ran on 2026-11-15 and
+the result was seen. All other statements are *read* (from source) or *planned*.
+Estimates are judgments. They are not measured velocity.
+
+== Measured state on 2026-11-15
+
+Each row ran in one cloud session. Tool versions: Julia 1.12.1, Zig 0.15.2 and
+0.17.1, Agda 2.6.3 with standard library 1.7.3, Z3 4.8.12, cvc5 1.1.2, Rust
+stable.
+
+[cols="1,3,2",options="header"]
+|===
+| Repository | Command and result | Not run
+| `Apodeixis.jl` | `Pkg.test()`: 366 passed, 0 failed (347 before this session, plus 19 new). | Julia 1.9.4 leg. Idris2 and Zig scaffold.
+| `atoma` | `zig build test`: 24 of 24 passed. `verification/atoma/check-agda.sh`: 4 modules, 0 postulates, 0 holes. | `scripts/atoma-gate.sh` (needs Z3 4.13.3, Idris2, ECHIDNA build).
+| `quintessence` | `zig build test`: 10 of 10 passed. `tests/quintessence/run_suite.sh`: 14 passed, 2 failed. | Elixir front end. Suite with the solver versions that the README names.
+| `bactrian` | `tests/bactrian/doctor_test.sh`: PASS. `scripts/bactrian/doctor.sh`: exit 2 (blocked, by design). | No product code exists to run.
+| `canonry` | `scripts/check-proofs.sh agda`: 2 of 2 gated modules PASS under `agda --safe --without-K --cubical-compatible`. | Rocq and Lean legs do not exist.
+| `chancel` | `cargo test --locked`: 2 passed. `cargo clippy -D warnings` and `cargo fmt --check`: clean. | No verifier code exists to run.
+|===
+
+== Aspect evaluation
+
+One row for each aspect. `ok` means measured and sound for the scope that the
+repository claims. `gap` means a defect or a missing part. `none` means the
+part does not exist yet.
+
+[cols="2,2,2,2,2,2,2",options="header"]
+|===
+| Aspect | atoma | quintessence | Apodeixis.jl | bactrian | canonry | chancel
+| Claims match code | ok | gap: fixed in README today; receipt format still overclaims | ok | ok after README repair | ok after README repair | ok after wording repair
+| Soundness of results | ok for the u8 pilot; model proof only | gap: structural Alethe check, heuristic Layer C, fixed BMC model | gap closed today: deny-list held 7 bypasses | none | ok: 0 postulates | none
+| Source to proof link | partial: one closed u8 function | gap: example-specific special cases | none | none | none: no Chapel link | none
+| Independent replay | partial: ECHIDNA and coqchk, receipt INCOMPLETE | none: no ECHIDNA call | none | none | none: no Rocq or Lean leg | none
+| Falsifiers | ok: 8 groups | partial: 16 cases, 2 fail off the pinned solvers | ok: tests fail without the fix | ok for the preflight | none | none
+| Project CI gate | ok: `atoma.yml` | gap: no workflow runs the engine | ok: `julia.yml` | added today: `bactrian.yml` | added today: `canonry.yml` | ok: `rust-ci.yml`
+| Reproducible toolchain | partial: pins, runner not frozen | gap: Zig 0.17 in code, 0.16.0 in `mise.lock`; solvers not pinned; NIF hash does not reproduce | partial: no `Manifest.toml`, `julia = "latest"` | gap: 8 authorities UNPINNED | partial: apt pins | ok: `Cargo.lock`, no dependencies
+| Project benchmarks | none: template only | none: template only | none: template only | none | none | none
+| Proof grade (theory) | ungraded: no receipt | none | none | none | `proven`, ungraded: no receipt | none
+| Deed identity | set | set, no uuid | UNASSIGNED | UNASSIGNED | UNASSIGNED | UNASSIGNED
+| Plan to v1 | yes | two plans that disagree | detailed, no v1 gate | detailed, no v1 gate | roadmap only | none
+|===
+
+== What is common and what is bespoke
+
+=== Common: do it one time, then apply it six times
+
+[cols="1,4,2",options="header"]
+|===
+| ID | Work | Kind of sameness
+| F1 | Template truth-up at the source (`rsr-template-repo`), then one sync of all six. Three template revisions are in use now. See the defect list below. | Identical files
+| F2 | Deed identity fields: IS, IS-NOT, pipeline position, clade. Owner only. | Same form, different values
+| F3 | Evidence kit: one receipt schema, one status vocabulary, one replay adapter, one falsifier harness. Start from `scripts/atoma-replay.sh` and `scripts/atoma-gate-falsifiers.sh`. | Same thing, change of name
+| F4 | CI gate shape: `<repo>.yml`, `scripts/<repo>-gate.sh`, `scripts/<repo>-ci-toolchain.sh`, evidence artifact, required check. | Same thing, change of name
+| F5 | Project benchmarks in the estate bench format. They replace `benches/template_bench.sh`. | Same harness, different workload
+| F6 | One toolchain pin table for Zig, Z3, cvc5, Agda, Coq, Idris2 and ECHIDNA. | Identical values
+| F7 | ECHIDNA client contract: `echidna prove --output json`, schema `echidna.prove.result/1`, one pinned ECHIDNA revision. | Identical adapter
+| F8 | Zig seam. `atoma` checks the Zig code that `quintessence` (NIF) and `bactrian` (FFI) admit. | One provider, two consumers
+| F9 | BEAM actor protocol layer. `quintessence` Layer B and `bactrian` Layer B use the same K-CUT rules, occupancy bound and upstream Agda authorities. | Same semantics, two front ends
+| F10 | Coprocessor contract with ECHIDNA. See the section below. | One contract
+| F11 | Proof Witness Grade recipe for theory: receipt for `PWG-3`, then a Rocq leg and a Lean leg. Applies to `canonry` and to the `atoma` Agda modules. | Same recipe
+| F12 | Release engineering: changelog, citation, version tags, the standards V1-GATE audit. | Same checklist
+|===
+
+=== Bespoke: each repository must do it alone
+
+* The front end: parser or compiler adapter for the target language.
+* The closed subset and its exclusions.
+* The semantics: memory and aliasing (Zig), dispatch and numeric tiers (Julia),
+  actors and supervision (Elixir), modules and effects (OCaml), strided domains
+  and array loops (Chapel).
+* The refinement argument from admitted source to the proved semantics.
+* The pilots and the diagnostics for users of that language.
+
+`ATOMA-SIBLING-TRANSFER.adoc` forbids a shared semantic IR until two adapters
+show the same meaning. This plan keeps that rule.
+
+=== Template defects found in more than one repository (input to F1)
+
+Fix each one in the template. Do not patch the six copies.
+
+* `docs/status/TEST-NEEDS.adoc` claims "CRG Grade C, achieved 2026-04-04" in
+  repositories born in October and November 2026.
+* `docs/status/READINESS.adoc` ships unfilled `_<...>_` placeholders.
+* `docs/status/PROOF-NEEDS.adoc` names a file on the owner's desktop.
+* `docs/EXPLAINME.adoc` is titled "RSR Template Repo" in every child.
+* `SUPPORT.adoc` uses Markdown syntax.
+* `scripts/check-bench-regression.sh` names `benchmarks/`; the directory is `benches/`.
+* `benches/template_bench.sh` measures template scripts in every child.
+* `.gitignore` ignores `verification/proofs/agda/*.agdai` and misses nested modules.
+* The deed carries `:last-updated "2026-04-11"`, before the birth date of the child.
+* The deed sets `:port 0` and the mint answers set `:port "8080"`.
+* `docs/decisions/` has two files numbered 0001.
+* `pages.yml` runs `cabal build` in repositories with no cabal file.
+* `rust-ci.yml` is green by no-op where no `Cargo.toml` exists.
+* `docker-build.yml` triggers on `build/container/**` where that directory is absent.
+* `sonar-project.properties` and `sonarqube.yml` keep an old project key.
+* `Justfile` recipes `readiness`, `build-release` and `test-smoke` are TODO stubs that fail.
+* The sample proofs under `verification/proofs/` say "Replace with your project's proofs" and stay gated.
+
+== Definition of v1.0.0
+
+`atoma/docs/plan/ULTRAPLAN.adoc` defines seven conjunctive gates. Every
+verifier in the family uses the same seven. Only the acceptance text changes.
+
+[cols="1,4",options="header"]
+|===
+| Gate | Family rule
+| Language boundary | A closed, typed subset with stated exclusions. An unsupported construct fails closed.
+| Source connection | Obligations come from the body. A change to a body, an import or a target invalidates old evidence.
+| Semantics | The semantic rules that the subset needs are proved, and the trusted computing base is published.
+| Replay | A source-derived witness passes every kernel that the specification requires. Unknown, timeout, missing and malformed evidence fail closed.
+| Practical coverage | Three pilots. A second consumer needs no special case.
+| Assurance | Mutants are killed by gates that ran. Evidence is reproducible and bound to source.
+| Release and estate | Claims, deed, README and installation are true. The standards V1-GATE audit passes.
+|===
+
+`canonry` is a theory library, not a verifier. Its v1 gates are in its own
+plan. A repository can release `0.x` versions before it passes all gates.
+
+== Waves: how the six move forward together
+
+A wave closes when each repository has its exit evidence. A repository that
+cannot close a wave narrows its subset. It does not skip the wave.
+
+[cols="1,3,3",options="header"]
+|===
+| Wave | Shared work | Exit evidence in each repository
+| W0 Truth and wiring | F1, F2, F4 (first half) | README is true. One project gate runs in CI. Each known hole is closed or is an open obligation in `PROOF-STATUS.adoc`.
+| W1 Evidence spine | F3, F6, F7, F5 | The gate uses the evidence kit without a local fork. One benchmark has a baseline from a real run.
+| W2 First source-bound obligation | none (bespoke front ends on the shared kit) | One closed function goes from source to obligation to ECHIDNA replay. One body-only mutant is rejected. Receipt status is INCOMPLETE.
+| W3 Subset and semantics | F8, F9 | The checked argument covers the admitted subset. An alias, overflow or nontermination counterexample is rejected.
+| W4 Kernel chain and grades | F7 (exchange), F10, F11 | End-to-end replay. Adversarial certificates fail. Theory theorems have receipts.
+| W5 Pilots and release | F12 | All seven gates pass on the release commit.
+|===
+
+W0 is partly done (see "Done in the first session"). W2 is the first wave
+that tests the transfer claim: measure time to a valid proof, time to reject a
+body-only mutant, adapter size, and the count of kit components reused
+unchanged. Re-estimate W3 to W5 from those numbers.
+
+== Models, effort and cost
+
+=== Roles
+
+[cols="1,3,3",options="header"]
+|===
+| Model | Use it for | Do not use it for
+| Fable (advisor) | Plan ratification. Wave gate review. Review of each claim promotion. Review of a cross-repository contract. | Execution. Routine review.
+| Opus (lead) | Proof work. Semantics. Refinement arguments. Contract and schema design. Repair of a soundness hole. Review of Sonnet work on a trust path. | CI, template drift, status files (doctrine rule 16).
+| Sonnet (executor) | Implementation against a written specification, 3 to 20 files. CI workflows. Adapters. Tests. README and status documents. | Design of a trust rule.
+| Haiku (bulk) | Scout pass before each step. Mechanical edits. Template sync. Counts and stale-string sweeps. | Any edit that needs judgment about a claim.
+|===
+
+=== Orchestration rules
+
+. Opus leads one wave in one repository at a time. It writes the brief for each Sonnet or Haiku task.
+. One writer for each repository tree at a time. Each brief names one allowed tree.
+. A Haiku scout runs before each Sonnet or Opus step. It reports blockers in 20 lines or fewer.
+. The advisor is called at four points only: plan ratification, the close of each wave, each promotion of a status word, and each change to a shared contract. The input is evidence files, not a narrative.
+. A subagent never states that a check passed unless it ran the check. The lead reruns one check from each report.
+. Work that touches a status word, a receipt, a trust level or a proof goes to Opus, with advisor review.
+. Common work (F1 to F12) is done in one repository first. Sonnet or Haiku then replays it in the others from a replay brief.
+. Shared code is extracted only after two repositories use the same thing.
+
+=== Effort scale
+
+`S` is one agent session. `M` is 2 to 4 sessions. `L` is 5 to 10 sessions.
+`XL` is more than 10 sessions and must be split before it starts. Measured in
+the first session: a recon of one repository used about 180,000 to 260,000
+tokens on Sonnet or Haiku. A polish task used about 160,000 to 180,000 tokens.
+
+[cols="1,4,1,1,1",options="header"]
+|===
+| ID | Work | Lead | Workers | Size
+| F1 | Template truth-up and one sync | Sonnet | Haiku | M
+| F2 | Deed identity | Owner | Haiku to regenerate the arrival pack | S
+| F3 | Evidence kit: schema, adapter, falsifier harness | Opus, advisor review | Sonnet | L
+| F4 | CI gate shape in each repository | Sonnet | Haiku | M
+| F5 | Benchmarks | Sonnet | Haiku | M
+| F6 | Toolchain pin table | Sonnet | Haiku | S
+| F7 | ECHIDNA client contract and exchange | Opus | Sonnet | L
+| F8 | Zig seam through `atoma` | Opus | Sonnet | L
+| F9 | Actor protocol layer | Opus, advisor review | Sonnet | XL
+| F10 | Coprocessor contract | Opus, advisor review | Sonnet | M
+| F11 | Proof Witness Grade recipe and legs | Opus | Sonnet for receipts | L
+| F12 | Release engineering | Sonnet | Haiku | M
+|===
+
+The bespoke work is much larger than the shared work. The existing plans give
+30 to 60 person-weeks for `atoma` and about 160 person-weeks for
+`quintessence`. Those figures are the authors' judgments. This plan does not
+shorten them. It removes repeated work and it orders the risk.
+
+== CI/CD design (F4, F5)
+
+Every repository has one project workflow with the same shape. `atoma.yml` is
+the reference.
+
+. `actions/checkout`, no persisted credentials, read-only permissions.
+. `scripts/<repo>-ci-toolchain.sh`: installs pinned tools and checks each digest.
+. `scripts/<repo>-gate.sh`: one fail-closed entry point. A missing tool is a failure, not a skip.
+. The gate runs unit tests, project proofs, falsifiers, then the benchmark.
+. The evidence directory is uploaded even on failure.
+. The job is a required check on `main`.
+. After a workflow change, run `scripts/lock-sync-fix.sh`, then `scripts/check-lock-sync.sh`. Do not edit `actions.lock` by hand.
+
+[cols="1,2,3",options="header"]
+|===
+| Repository | Gate today | Next step
+| `atoma` | `atoma.yml`: full gate | Add the replay time and the mutant-rejection time as benchmarks.
+| `Apodeixis.jl` | `julia.yml`: package tests on two Julia versions | Add audit throughput on a fixed corpus as a benchmark.
+| `quintessence` | none | Add `quintessence.yml` with the Zig unit tests first. Add the suite only after the solvers are pinned and the NIF receipt reproduces.
+| `bactrian` | `bactrian.yml`: preflight test | Flip the expected preflight status when WP-00 pins the authorities.
+| `canonry` | `canonry.yml`: Agda proof gate | Add the receipt step (F11).
+| `chancel` | `rust-ci.yml` | Add the subset-gate fixtures when the gate exists.
+|===
+
+A benchmark is valid only if its baseline comes from a recorded run on the
+pinned toolchain. A benchmark gate compares against that baseline with the
+estate script `scripts/check-bench-regression.sh`.
+
+== ECHIDNA coprocessor (F10)
+
+Question from the owner: are these repositories wired to the ECHIDNA
+coprocessor layer and its Julia side, `src/julia/coprocessor.jl`, and can that
+be done without friction?
+
+Answer: no repository in the family refers to the coprocessor. The wiring is
+not possible without friction today. These are the facts, read from the
+ECHIDNA source on 2026-11-15:
+
+* The Rust coprocessor layer has 16 kinds. The in-process backends are real code.
+* No external entry point exists. The CLI, REST, gRPC and GraphQL interfaces have no coprocessor route.
+* `coprocessor.jl` implements 6 `Math` operations. No recipe, container or Julia file starts it. Rust code never constructs the bridge. No round-trip test exists.
+* The coprocessor default URL and the ML sidecar default URL both use port 8090.
+* The wire format has no version field and no published schema.
+* The trust tier of a coprocessor is defined. No code outside the module reads it.
+* The ECHIDNA plan (decision D-G) defers the coprocessor trait "until a second consumer needs it".
+
+The verifier family is that second consumer. The path, in order:
+
+. The owner rules on D-G.
+. ECHIDNA publishes a versioned contract, `echidna.coprocessor/1`, in the style of `PROVE-RESULT-CONTRACT.adoc`.
+. ECHIDNA adds one entry point, for example `echidna coprocessor dispatch --output json`, and a capability probe.
+. Trust rule: a coprocessor answer is a hint. It never raises a status word. A prover or an exhaustive check must confirm it.
+. The Julia server gets its own port, a launcher and a round-trip test.
+
+First uses that pay for the work:
+
+* `canonry` and `chancel`: exact `gcd` and `lcm` for strided-domain alignment. Use them to search for counterexamples before a proof attempt.
+* `Apodeixis.jl`: exact integer and rational cross-checks for the exact numeric tier. Interval arithmetic needs new operations.
+* `atoma` and `quintessence`: evaluation of bit-vector counterexamples.
+
+Until the contract exists, each verifier calls ECHIDNA only through
+`echidna prove --output json`.
+
+== Shared libraries
+
+[cols="2,1,3",options="header"]
+|===
+| Candidate | Verdict | Reason
+| Evidence kit (schema, replay adapter, falsifier harness) | Extract in W1 | It holds no language semantics. `ATOMA-SIBLING-TRANSFER.adoc` rates its reuse high.
+| Canonical JSON and hashing | Use `hyperpolymath/ijson-jcs` | `atoma` (`canon.zig`) and `quintessence` (`jcs.zig`) each carry a private copy.
+| SMT driver and Alethe check | Do not share the `quintessence` copy | Its Alethe check is structural. Use the ECHIDNA dispatch and certificate path (F7).
+| Mutation engine | Use the ECHIDNA mutation planner | The `quintessence` engine is a local imitation with the ECHIDNA name.
+| Finite arithmetic and linear resources in Agda (`Bv.agda`, `Lin.agda`) | Extract when a second repository needs them | The second-adopter rule.
+| Shared semantic IR | Not yet | Forbidden until two adapters show the same meaning.
+|===
+
+The home of the evidence kit is an owner decision. The options are a new
+small repository, a directory in ECHIDNA next to the prove contract, or a
+directory that the template sync carries.
+
+== Enhancements that the lead recommends
+
+. Make `quintessence` consume `atoma` for Layer C. It replaces a pattern heuristic with a checked result, and it gives `atoma` its second consumer.
+. Pair `canonry` and `chancel` under one wave schedule. `chancel` has no purpose until `canonry` M1 defines the obligation format.
+. Put `bactrian` Layer B behind `quintessence` Layer B. Both need the same protocol rules. Build them one time.
+. Record the reuse measures from `ATOMA-SIBLING-TRANSFER.adoc` in each W2 exit report. Decide the order of W3 from them.
+. Give every repository the same plan path, `docs/plan/ULTRAPLAN.adoc`, and the same seven gates. An agent that learns one repository can then work in the others.
+. Keep one page for each repository that lists the measured state with the date. Refresh it at each wave close.
+. Unify the status words. `quintessence` uses `TrustLevel`. The estate grades theory with `PWG`. Receipts use INCOMPLETE and COMPLETE. The evidence kit must map them one time.
+
+== Done in the first session (2026-11-15)
+
+* `Apodeixis.jl`: the policy audit accepted `@ccall`, `unsafe_wrap`, `pointer_from_objref`, `include`, `llvmcall`, an alias of a forbidden call and `getfield(Base, :unsafe_load)`. It now rejects them. 19 new tests fail without the fix.
+* `quintessence`: a `coqc` and a `lean` binary on PATH gave TrustLevel 5 with no check. The maximum is now 4. Suite case 16 fails without the fix. The README states the measured state and the limits.
+* `canonry`: `canonry.yml` runs the Agda proof gate. The README describes the theory.
+* `bactrian`: `bactrian.yml` runs the preflight test. The README describes the project.
+* `chancel`, `atoma`: stale statements corrected.
+* Each repository has a plan at `docs/plan/ULTRAPLAN.adoc`.
+
+== Stop points
+
+* If a W2 spike fails in a language, narrow the advertised subset or change the architecture. Do not add features.
+* If the evidence kit needs a language-specific branch, stop F3 and review the schema with the advisor.
+* If a status word would be promoted without a receipt, stop. A grade is derived from receipts. It is never asserted.
