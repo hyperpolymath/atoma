@@ -251,7 +251,8 @@ estate script `scripts/check-bench-regression.sh`.
 == ECHIDNA coprocessor (F10)
 
 Question from the owner: are these repositories wired to the ECHIDNA
-coprocessor layer and its Julia side, `src/julia/coprocessor.jl`, and can that
+coprocessor layer and its Julia side (the file `coprocessor.jl` in the ECHIDNA
+Julia sources), and can that
 be done without friction?
 
 Answer: no repository in the family refers to the coprocessor. The wiring is
