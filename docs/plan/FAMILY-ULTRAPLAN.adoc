@@ -30,6 +30,15 @@ A statement in this plan is *measured* only if a command ran on 2026-11-15 and
 the result was seen. All other statements are *read* (from source) or *planned*.
 Estimates are judgments. They are not measured velocity.
 
+*Replay* has one meaning in this plan and in the six repository plans. It is
+two steps on the same proof artifact: an `echidna prove` result on a pinned
+ECHIDNA revision, then an independent kernel check. `scripts/atoma-replay.sh`
+is the reference: the Coq backend, then `coqchk`, then an audit of
+assumptions. `echidna prove` alone checks one backend and verifies no
+certificate (ECHIDNA `docs/PROVE-RESULT-CONTRACT.adoc`), so a prove result
+alone is not replay. A receipt from replay keeps the status INCOMPLETE until
+the full kernel chain of wave W4 exists.
+
 == Measured state on 2026-11-15
 
 Each row ran in one cloud session. Tool versions: Julia 1.12.1, Zig 0.15.2 and
@@ -82,7 +91,7 @@ part does not exist yet.
 | F4 | CI gate shape: `<repo>.yml`, `scripts/<repo>-gate.sh`, `scripts/<repo>-ci-toolchain.sh`, evidence artifact, required check. | Same thing, change of name
 | F5 | Project benchmarks in the estate bench format. They replace `benches/template_bench.sh`. | Same harness, different workload
 | F6 | One toolchain pin table for Zig, Z3, cvc5, Agda, Coq, Idris2 and ECHIDNA. | Identical values
-| F7 | ECHIDNA client contract: `echidna prove --output json`, schema `echidna.prove.result/1`, one pinned ECHIDNA revision. | Identical adapter
+| F7 | ECHIDNA client contract: `echidna prove --output json`, schema `echidna.prove.result/1`, one pinned ECHIDNA revision, and the independent kernel check that makes a prove result into replay. | Identical adapter
 | F8 | Zig seam. `atoma` checks the Zig code that `quintessence` (NIF) and `bactrian` (FFI) admit. | One provider, two consumers
 | F9 | BEAM actor protocol layer. `quintessence` Layer B and `bactrian` Layer B use the same K-CUT rules, occupancy bound and upstream Agda authorities. | Same semantics, two front ends
 | F10 | Coprocessor contract with ECHIDNA. See the section below. | One contract
@@ -156,7 +165,7 @@ cannot close a wave narrows its subset. It does not skip the wave.
 | Wave | Shared work | Exit evidence in each repository
 | W0 Truth and wiring | F1, F2, F4 (first half) | README is true. One project gate runs in CI. Each known hole is closed or is an open obligation in `PROOF-STATUS.adoc`.
 | W1 Evidence spine | F3, F6, F7, F5 | The gate uses the evidence kit without a local fork. One benchmark has a baseline from a real run.
-| W2 First source-bound obligation | none (bespoke front ends on the shared kit) | One closed function goes from source to obligation to ECHIDNA replay. One body-only mutant is rejected. Receipt status is INCOMPLETE.
+| W2 First source-bound obligation | none (bespoke front ends on the shared kit) | One closed function goes from source to obligation to replay (as defined above). One body-only mutant is rejected. Receipt status is INCOMPLETE.
 | W3 Subset and semantics | F8, F9 | The checked argument covers the admitted subset. An alias, overflow or nontermination counterexample is rejected.
 | W4 Kernel chain and grades | F7 (exchange), F10, F11 | End-to-end replay. Adversarial certificates fail. Theory theorems have receipts.
 | W5 Pilots and release | F12 | All seven gates pass on the release commit.
