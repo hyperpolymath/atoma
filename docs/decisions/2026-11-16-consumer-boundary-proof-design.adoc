@@ -36,10 +36,14 @@ Probe inputs, in order: lone CR, lone LF, CRLF, `clean`, embedded CR in
 `a\rZ`. Idris2 0.8.0 RefC output: `True True True False True`.
 Zig 0.15.2 output: `false false true false false`, each with status 0.
 This is executable evidence of disagreement, not just two models disagreeing.
-Reproduce with `ZIG=/path/to/zig-0.15.2 IDRIS2=/path/to/idris2
-bash tests/consumer-boundary/proven-header-probe.sh /path/to/proven`.
-The diagnostic deliberately exits 1 on disagreement and retains its
-input identities, build output and differing results outside the repository.
+These are historical results for the pinned Proven revision above. To replay
+that mismatch, use the diagnostic from Atoma commit
+`8377513cb93beec96148c5995bec8aadb8e74c09` with Proven at `c13619f9a67a1b9e8234e22e22dae0940d2480cb`.
+That diagnostic exits 1 on disagreement and retains the input identities,
+build output and differing results outside the repository. The current
+diagnostic instead requires the repaired RefC bundle builder and checks the
+five matching rows; follow link:../../tests/consumer-boundary/README.adoc[its instructions]
+with Proven at `24fd48e954b7c124a195412a35c9c0be6f54990b` or a compatible later repair.
 
 == Decision 1: preserve boundary semantics, not spelling conventions
 
@@ -177,9 +181,12 @@ behavioral disagreement, not the unproved source/compiler refinement relation.
 The adapter's finite decoder now has both decoding laws and its partial
 registration model has a no-fabricated-handler theorem. Its executable RefC
 matrix covers all 256 tags and four registration states. The actual Zig
-registration table and network transports are still pending. See
-link:../../tests/consumer-boundary/README.adoc[the consumer diagnostic] for
-reproduction and the explicit receipt boundary.
+registration table and network transports are still pending. Reproduce that
+matrix at unified-api-adapter commit `259eff356e72fde2dadb1e144442f7a736da3601`
+with `bash scripts/check-registry.sh`; see
+link:https://github.com/hyperpolymath/unified-api-adapter/blob/259eff356e72fde2dadb1e144442f7a736da3601/scripts/check-registry.sh[the pinned registry gate].
+The link:../../tests/consumer-boundary/README.adoc[consumer diagnostic]
+documents only the Proven experiment and its explicit receipt boundary.
 
 [cols="1,3,4",options="header"]
 |===
