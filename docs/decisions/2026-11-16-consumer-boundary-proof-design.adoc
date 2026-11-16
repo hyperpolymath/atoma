@@ -168,6 +168,19 @@ headers; no successful checker leg is claimed for it.
 
 == Next implementation packets and acceptance criteria
 
+Follow-up implementation evidence: Proven now has a reachable Idris byte-state
+kernel and a native RefC bundle path. The consumer diagnostic links that actual
+library; the five original cases agree. Its stronger ABI corpus covers all byte
+pairs and rejects an always-clean compiled mutant. This closes the observed
+behavioral disagreement, not the unproved source/compiler refinement relation.
+
+The adapter's finite decoder now has both decoding laws and its partial
+registration model has a no-fabricated-handler theorem. Its executable RefC
+matrix covers all 256 tags and four registration states. The actual Zig
+registration table and network transports are still pending. See
+link:../../tests/consumer-boundary/README.adoc[the consumer diagnostic] for
+reproduction and the explicit receipt boundary.
+
 [cols="1,3,4",options="header"]
 |===
 |Order |Packet |Evidence needed to finish

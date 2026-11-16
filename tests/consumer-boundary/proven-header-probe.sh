@@ -21,7 +21,8 @@ cp -R "$proven/src/Proven" "$work/src/Proven"
   git -C "$proven" rev-parse HEAD
   "$idris" --version
   "$zig" version
-  sha256sum "$proven/src/Proven/SafeHeader/Types.idr" "$proven/src/Proven/Core.idr" "$proven/ffi/zig/src/main.zig"
+  git -C "$proven" diff --stat
+  sha256sum "$proven/src/Proven/SafeHeader/Types.idr" "$proven/src/Proven/Core.idr" "$proven/src/Proven/SafeHeader/ByteKernel.idr" "$proven/ffi/zig/src/core.zig" "$proven/ffi/zig/src/header_refc.zig" "$proven/ffi/zig/src/main_refc.zig"
 } > "$evidence/inputs.log"
 cat > "$work/src/AtomaHeaderProbe.idr" <<'IDRIS'
 module AtomaHeaderProbe
@@ -47,8 +48,10 @@ pub fn main() !void {
     }
 }
 ZIG
-"$zig" build-obj "$proven/ffi/zig/src/main.zig" -lc -femit-bin="$work/proven.o" > "$evidence/zig-build.log" 2>&1
-"$zig" build-exe "$work/probe.zig" "$work/proven.o" -lc -femit-bin="$work/probe" >> "$evidence/zig-build.log" 2>&1
+IDRIS2="$idris" bash "$proven/scripts/build-header-refc.sh" "$work/bundle" > "$evidence/header-build.log" 2>&1
+cp "$work/bundle/identity.log" "$evidence/header-identity.log"
+(cd "$proven/ffi/zig"; "$zig" build --build-file build_standalone.zig -Dheader-refc="$work/bundle" --prefix "$work/install") > "$evidence/zig-build.log" 2>&1
+"$zig" build-exe "$work/probe.zig" "$work/install/lib/libproven_ffi.a" "$work/bundle/libidris2_refc.a" "$work/bundle/libidris2_support.a" -lc -lgmp -lm -lpthread -femit-bin="$work/probe" >> "$evidence/zig-build.log" 2>&1
 "$work/probe" > "$evidence/zig-results.txt" 2>&1
 for result in idris-results.txt zig-results.txt; do
   if [[ $(wc -l < "$evidence/$result") -ne 5 ]] || grep -Evq '^(true|false)$' "$evidence/$result"; then
