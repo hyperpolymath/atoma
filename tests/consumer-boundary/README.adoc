@@ -10,6 +10,8 @@ The repaired experiment was checked against Proven commit
 `scripts/build-header-refc.sh` cannot run this version of the diagnostic.
 To reproduce the historical mismatch at Proven `c13619f9a67a1b9e8234e22e22dae0940d2480cb`,
 use this script from Atoma `8377513cb93beec96148c5995bec8aadb8e74c09` instead.
+For that historical script, set both `IDRIS2` and `ZIG` to absolute executable
+paths; its directory changes do not preserve relative tool overrides.
 
 The diagnostic compiles the existing Idris String predicate independently,
 builds Proven's actual RefC byte kernel and SDK bundle, then links the exported

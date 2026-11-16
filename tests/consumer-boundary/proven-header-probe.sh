@@ -4,6 +4,8 @@
 # Execute the actual Idris predicate and Zig export, not handwritten oracles.
 # A disagreement is exit 1. This is a diagnostic, not a proof certificate.
 set -euo pipefail
+# A caller's CDPATH must not add stdout to captured directory resolutions.
+unset CDPATH
 proven=${1:?usage: proven-header-probe.sh /path/to/proven}
 proven=$(cd "$proven" && pwd)
 zig=${ZIG:-zig}
