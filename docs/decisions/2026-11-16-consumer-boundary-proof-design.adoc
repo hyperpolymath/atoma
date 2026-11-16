@@ -1,0 +1,201 @@
+// SPDX-License-Identifier: CC-BY-SA-4.0
+// Copyright (c) 2026 Jonathan D.A. Jewell <j.d.a.jewell@open.ac.uk>
+= Consumer boundary proof design
+:toc:
+
+Status: design decisions for the next milestone, grounded in executed
+counterexamples and checked mathematics. This is not a completed Atoma
+frontend, a verified FFI, or a v1 release claim.
+
+== Pinned observations
+
+[cols="1,2,4",options="header"]
+|===
+|Repository |Revision |Observation
+|Atoma |`3843e261510378ff7225090113d5ef1eef99d551`
+|Closed source subset and finite-model replay. No general loop, heap,
+ABI-layout or source/compiler refinement certificate.
+|Proven |`c13619f9a67a1b9e8234e22e22dae0940d2480cb`
+|Actual RefC-compiled `Proven.SafeHeader.Types.hasCRLF` detects either CR or LF.
+The actual Zig `proven_header_has_crlf` detects only the adjacent pair.
+|unified-api-adapter |`c02b804cde0ae308df9ce180516901cc9121dcfa`
+|`Abi.Dispatch` proves a model routing MCP/REST. The Zig tree is template
+FFI code; no real transport table implements those routes yet.
+|Sholes |`506f6d7c43b682603f4a39073ad79bd6ec4baee5`
+|link:https://github.com/hyperpolymath/sholes/pull/15[Draft proof PR]:
+normalization algebra, header bridge, finite octet bijection and pure
+streaming refinement. Agda and full Cubical pass; core/header/streaming
+Lean/Rocq witnesses pass, with no additional axioms; Rocq replay passes.
+|Mathesis |`327e4d2a38ada558b275099ee82842b90423724a`
+|`FeatureReachability` rechecked in Agda, Lean and Rocq/coqchk.
+`Applied.Missing`, `Applied.Status` and their imports rechecked in strict
+compatible Agda. This is a scoped recheck, not an estate-wide proof audit.
+|===
+
+Probe inputs, in order: lone CR, lone LF, CRLF, `clean`, embedded CR in
+`a\rZ`. Idris2 0.8.0 RefC output: `True True True False True`.
+Zig 0.15.2 output: `false false true false false`, each with status 0.
+This is executable evidence of disagreement, not just two models disagreeing.
+Reproduce with `ZIG=/path/to/zig-0.15.2 IDRIS2=/path/to/idris2
+bash tests/consumer-boundary/proven-header-probe.sh /path/to/proven`.
+The diagnostic deliberately exits 1 on disagreement and retains its
+input identities, build output and differing results outside the repository.
+
+== Decision 1: preserve boundary semantics, not spelling conventions
+
+Storage normalization and header rejection are distinct operations.
+The first maps CR/LF/CRLF to a canonical line-token representation; the
+second rejects the presence of either forbidden octet. Sholes proves that
+normalization preserves that presence. Its stronger counterexample proves
+that every LF-canonical stream defeats a CRLF-pair-only detector.
+
+Do not insert normalization ahead of the current Proven Zig predicate as
+a repair. Keep the authoritative operation in Idris and make Zig marshal
+and call it. Adding a second correct-looking Zig scan would leave the
+architecture's duplicated semantic authority in place.
+
+For the raw pointer/length ABI, specify the operation over an exact byte
+sequence. Do not route it through a NUL-terminated string: `NUL, CR`
+would otherwise permit truncation before the forbidden byte. Use an
+Idris byte-sequence entry point and explicit length-preserving marshaling.
+Relating that entry point to the existing String predicate is a separate
+lemma about the chosen encoding; RefC code generation alone is no proof.
+
+Preserve current null-pointer error behavior even at length zero until an
+explicit ABI revision. A non-null empty region returns success/false.
+Accessible memory for the complete declared length remains a caller
+precondition; a null test cannot establish pointer validity. Record
+read-only access, lifetime and alias conditions in the contract.
+
+== Decision 2: routes are plans until a transport is registered
+
+Separate `protocolTag` decoding, planned route selection, registered
+capability, invocation and outcome. They are five different judgments.
+A successful route lookup must not be treated as a successful API call.
+
+Use a registration witness tied to the exact transport implementation
+and configuration, rather than a Boolean named `implemented` that is
+true merely because an enum constructor exists. An empty registration
+set is the initial truthful state of unified-api-adapter. Known but
+unavailable protocols return Unsupported; unknown byte tags return
+InvalidParam. Invocation errors remain errors, preserving payload and
+resource ownership contracts.
+
+For the proof model, use a finite byte type and a total decoder whose
+forward and reverse laws are both established. The current Idris
+`Bits8` round-trip proves encode-then-decode for nine constructors;
+it does not establish decode-then-encode for arbitrary primitive bytes.
+Sholes' finite reflection coverage technique is reusable for that
+closed 256-value domain. It does not supply an Idris `Bits8` equality
+reflection theorem. The primitive-to-finite conversion still needs
+its own implementation relation and exhaustive executable comparison.
+
+== Decision 3: extend Atoma through a checked semantic relation
+
+Retain the closed, fail-closed frontend. Add only the constructs demanded
+by the first consumer slice: immutable byte-region views, bounded reads,
+guarded iteration, finite state, explicit status/result construction and
+calls with supplied contracts. Reject unsupported operations and imports.
+Do not infer correctness from a copied theorem about a similar model.
+
+The required commuting argument has four links:
+
+. The exact source function and transitive imports elaborate to the
+  accepted typed control-flow model, including all exceptional paths.
+. Lowering preserves the model's input/output relation and definedness
+  obligations: bounds, arithmetic, ownership, aliasing and state transitions.
+. The generated verification conditions imply the selected consumer
+  contract; replay checks those conditions against a source-derived statement.
+. The compiled ABI wrapper implements the accepted relation under its
+  recorded runtime/compiler/target assumptions.
+
+Use per-function translation validation as the next implementation
+approach, backed by explicit Agda semantic rules and corresponding
+replay witnesses. A general verified Zig compiler is outside v1.
+Until link 1 and the relevant ABI portion of link 4 have evidence, keep
+the consumer result INCOMPLETE, even if every model theorem replays.
+Compiler trust must remain explicit in the eventual supported v1 profile.
+
+The practical diversity is intentional: a header predicate exercises
+byte-region and encoding boundaries; Sholes streaming adds persistent
+state across splits; adapter dispatch adds closed decoding, registration
+and external effects. A single scalar arithmetic example covers none
+of those new boundaries.
+
+== Reuse from Mathesis and ownership of new results
+
+`FeatureReachability.Monotone.reach-mono` is directly reusable for a
+capability/dependency graph if adding registrations only adds edges.
+Its `absent-below` corollary can justify absence under smaller configurations.
+The instantiation must supply `edge-mono`, a fixed implementation graph
+and a fixed target/configuration context. Revocation, mutually exclusive
+flags and runtime failures invalidate a naive monotonicity argument;
+they are not covered by turning on every feature.
+
+`Applied.Status.zipWith-needs` and `missing-uncovered`, together with
+`Applied.Missing`, provide an existing design pattern for preserving
+missing evidence and preventing unjustified upgrades. Their concrete
+financial evidence statuses are not PWG grades or Atoma acceptance levels.
+Generalizing a dependency-evidence theorem requires a new abstraction
+and a comparison of statements, not relabeling those constructors.
+
+Sholes owns its line-ending and streaming laws. Proven owns the concrete
+Idris/RefC/Zig boundary. unified-api-adapter owns its protocol and
+transport contract. Atoma owns Zig semantics and lowering adequacy.
+Mathesis indexes pinned home-repo receipts and may own genuinely generic
+finite-reflection or evidence-composition theorems once their admission
+record names the actual dependants. Do not copy application proofs into
+Mathesis merely to raise a catalogue count.
+
+ECHIDNA owns reusable evidence/replay plumbing. Use its stable published
+contract when available; do not duplicate that acceptance kernel or
+depend on another task's uncommitted implementation.
+
+== Witness identity and limits
+
+Bind receipts to source/import hashes, exact contract statement, frontend
+version, Zig/Idris/RefC versions, target triple and ABI, capability
+configuration, checker executable/version, assumptions and proof inputs.
+An accepted solver answer or a passed test is not an independent proof.
+Missing obligations and unavailable checkers remain explicit failures
+or INCOMPLETE results, never empty successful obligation lists.
+
+Sholes currently uses source-reviewed hand re-proofs in Lean and Rocq.
+The three kernels accept corresponding mathematics, but automatic
+statement correspondence remains open. Finite Wire lemmas currently have
+only the Agda leg. Full Cubical is a separate profile, not a new independent
+kernel. The installed Lean4Lean executable failed on incompatible object
+headers; no successful checker leg is claimed for it.
+
+== Next implementation packets and acceptance criteria
+
+[cols="1,3,4",options="header"]
+|===
+|Order |Packet |Evidence needed to finish
+|1 |Proven exact-byte RefC bridge
+|Reachable Idris entry point, audited RefC value layout/lifetime, Zig call
+to that entry point, differential corpus including CR/LF, embedded NUL,
+invalid UTF-8, zero length, null and near-boundary lengths. Current bug fixed.
+|2 |Adapter decoder and registration seam
+|Both finite decoding laws; all 256 primitive tags compared against the
+model; real registration table; no registered handler means refusal;
+MCP/REST do not claim operational availability before their implementations exist.
+|3 |Atoma region/state semantic core
+|Agda safety and lowering theorems with strict flags, corresponding
+Lean/Rocq witnesses, bounds/alias/state counterexamples and exact source binding.
+|4 |Real adapter transport
+|Move and pin the actual REST connector from developer-ecosystem;
+failure/cancellation/ownership traces. MCP is a separate implementation packet.
+|5 |Replay and consumer acceptance
+|Correct-model/wrong-source, stale witness, changed ABI, missing checker,
+empty obligation and split-state mutants all rejected. Passes identify
+exact supported contracts; broader source/compiler claims remain explicit.
+|6 |Mathesis/checker integration
+|Home receipts, justified generic theorem admission, source statement
+correspondence, pinned matching alternate checker and import-cone replay.
+|===
+
+Packets 1–3 are the hard semantic work to front-load. Wiring workflows,
+metadata and repetitive wrappers follows their stable contracts. There
+is no justified v1 date yet: the remaining risk lies in source/ABI
+refinement and real transport effects, not in counting theorem files.
