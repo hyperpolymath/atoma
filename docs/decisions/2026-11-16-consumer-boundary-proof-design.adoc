@@ -21,7 +21,7 @@ The actual Zig `proven_header_has_crlf` detects only the adjacent pair.
 |unified-api-adapter |`c02b804cde0ae308df9ce180516901cc9121dcfa`
 |`Abi.Dispatch` proves a model routing MCP/REST. The Zig tree is template
 FFI code; no real transport table implements those routes yet.
-|Sholes |`506f6d7c43b682603f4a39073ad79bd6ec4baee5`
+|Sholes |`b9256fd6090af9199d7307e2381f7a5e9c5cad44`
 |link:https://github.com/hyperpolymath/sholes/pull/15[Draft proof PR]:
 normalization algebra, header bridge, finite octet bijection and pure
 streaming refinement. Agda and full Cubical pass; core/header/streaming
@@ -162,8 +162,7 @@ or INCOMPLETE results, never empty successful obligation lists.
 
 Sholes currently uses source-reviewed hand re-proofs in Lean and Rocq.
 The three kernels accept corresponding mathematics, but automatic
-statement correspondence remains open. Finite Wire lemmas currently have
-only the Agda leg. Full Cubical is a separate profile, not a new independent
+statement correspondence remains open. Finite Wire lemmas now also have checked Lean and Rocq legs. Full Cubical is a separate profile, not a new independent
 kernel. The installed Lean4Lean executable failed on incompatible object
 headers; no successful checker leg is claimed for it.
 
