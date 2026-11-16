@@ -1,0 +1,35 @@
+// SPDX-License-Identifier: CC-BY-SA-4.0
+// Copyright (c) 2026 Jonathan D.A. Jewell <j.d.a.jewell@open.ac.uk>
+= Proven header consumer diagnostic
+
+Run `bash tests/consumer-boundary/proven-header-probe.sh /path/to/proven` with
+Idris2 `b6cbc25d5cd2ef2a250556266fd7b68dfc360f8b` and Zig 0.15.2 on native
+Linux x86_64 GNU. `IDRIS2`, `ZIG` and `EVIDENCE_DIR` may select explicit paths.
+
+The diagnostic compiles the existing Idris String predicate independently,
+builds Proven's actual RefC byte kernel and SDK bundle, then links the exported
+C ABI into a Zig caller. The standalone unavailable-backend wrapper is not a
+successful substitute. Missing build scripts, SDKs, symbols or nonzero statuses
+are failures.
+
+The five expected rows (Idris and Zig columns) are:
+
+[source,text]
+----
+cr           true   true
+lf           true   true
+crlf         true   true
+clean        false  false
+embedded-cr  true   true
+----
+
+The earlier adjacent-pair implementation disagreed on three rows. The repaired
+bridge agrees on all five. Logs bind source hashes, compiler versions and the
+actual generated SDK. Proven's separate `scripts/test-header-bridge.sh` covers
+all single bytes and byte pairs, NUL, non-UTF-8 and length boundaries, including
+a broken-backend rejecting control.
+
+This script is a differential executable diagnostic. It does not issue an
+Atoma source-proof receipt. The current source frontend cannot represent the
+loop, pointer span, foreign-call state transition or all compilation steps.
+The corresponding source/refinement result therefore remains INCOMPLETE.
