@@ -4,12 +4,18 @@
 # Execute the actual Idris predicate and Zig export, not handwritten oracles.
 # A disagreement is exit 1. This is a diagnostic, not a proof certificate.
 set -euo pipefail
+# A caller's CDPATH must not add stdout to captured directory resolutions.
+unset CDPATH
 proven=${1:?usage: proven-header-probe.sh /path/to/proven}
 proven=$(cd "$proven" && pwd)
 zig=${ZIG:-zig}
 idris=${IDRIS2:-idris2}
-command -v "$zig" >/dev/null
-command -v "$idris" >/dev/null
+# Resolve overrides before any subshell changes directory. Preserve the
+# executable's basename (Idris wrappers may locate their data through $0).
+zig=$(command -v "$zig")
+zig=$(cd "$(dirname "$zig")" && printf '%s/%s' "$PWD" "$(basename "$zig")")
+idris=$(command -v "$idris")
+idris=$(cd "$(dirname "$idris")" && printf '%s/%s' "$PWD" "$(basename "$idris")")
 evidence=${EVIDENCE_DIR:-$(mktemp -d -t atoma-header-evidence.XXXXXXXX)}
 mkdir -p "$evidence"
 evidence=$(cd "$evidence" && pwd)
@@ -23,6 +29,9 @@ cp -R "$proven/src/Proven" "$work/src/Proven"
   "$zig" version
   git -C "$proven" diff --stat
   sha256sum "$proven/src/Proven/SafeHeader/Types.idr" "$proven/src/Proven/Core.idr" "$proven/src/Proven/SafeHeader/ByteKernel.idr" "$proven/ffi/zig/src/core.zig" "$proven/ffi/zig/src/header_refc.zig" "$proven/ffi/zig/src/main_refc.zig"
+  if [[ -d "$proven/ffi/zig/src/refc" ]]; then
+    find "$proven/ffi/zig/src/refc" -type f -name '*.zig' -exec sha256sum {} +
+  fi
 } > "$evidence/inputs.log"
 cat > "$work/src/AtomaHeaderProbe.idr" <<'IDRIS'
 module AtomaHeaderProbe
