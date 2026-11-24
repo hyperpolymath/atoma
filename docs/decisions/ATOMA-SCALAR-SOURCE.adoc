@@ -1,0 +1,92 @@
+// SPDX-License-Identifier: CC-BY-SA-4.0
+// Copyright (c) 2026 Jonathan D.A. Jewell <j.d.a.jewell@open.ac.uk>
+= Closed scalar source checking for the first experimental MVP
+:revdate: 2026-11-24
+
+Status: implementation under remote validation. Passing evidence must name
+the exact commit and hosted run. This decision does not change COMPLETE,
+the v1 gates, or the estate architecture: Idris2 defines ABI contracts;
+foreign-facing FFI and API implementations are pure Zig.
+
+== Why this slice
+
+The earlier u8 replay checks a theorem about a model emitted by the Zig
+frontend. A faulty frontend could emit a correct model for an incorrect body.
+The new path sends original source bytes to a separate Coq parser and
+interpreter. The Zig command only serializes bytes and a complete contract
+table; it cannot supply the parser's answer or the interpreted expression.
+
+The first actual sources are Proven's RefC byte-to-word marshaling helper and
+UAA's protocol classifier. They are factored from the production Zig wrappers,
+not rewritten application algorithms. Proven retains its SDK/target guard and
+calls Idris for header semantics. UAA retains its registration table and
+callback behavior. The helpers introduce no C FFI or C API implementation.
+Idris's private RefC backend and a foreign C test caller remain separate.
+
+== Admitted grammar and meaning
+
+Each source contains exactly one public, non-exported pure function, one u8
+parameter and one return expression. ASCII whitespace and line comments are
+allowed. The alternatives are:
+
+* A u64 shift/OR: `return (@as(u64, x) << S) | T;`, with decimal S at most 56
+  and T at most 255.
+* A Boolean interval: `return x >= LO and x <= HI;`, with both bounds at most
+  255; Boolean results are represented as 0 or 1 in the contract table.
+
+No imports, calls, pointers, state, additional declarations, generics, loops,
+overflowing arithmetic or arbitrary comptime evaluation are admitted.
+The Coq source interpreter defines the meaning used in this claim. Its proof
+establishes every input below 256 agrees with the supplied table and every
+result fits u64. It does not prove equivalence to the full Zig language or
+compiler. Native compilation is an additional required consumer gate, so a
+string accepted by the closed parser but rejected by Zig cannot pass that gate.
+
+== Authority, replay and falsifiers
+
+The consumer runner fetches exact commits from `tests/consumer-scalar/consumers.tsv`
+and compiles an Idris oracle in a new directory with totality, warnings-as-errors
+and a no-holes check. Proven's word-profile contract and UAA's existing finite
+decoder supply all 256 rows. The compiler, primitive Bits8 conversion and RefC
+execution remain trusted; an oracle run is not a theorem about Idris compilation.
+
+An independent `od`/awk serializer compares source bytes and table literals
+against the generated Coq capsule. ECHIDNA compiles the theorem; `coqchk`
+rechecks it; a separately generated audit checks its type against fresh input
+literals and prints its assumptions. The source-checker object is compiled
+before dispatch and must remain unchanged afterward. Evidence binds sources,
+contract, checker source/object, theorem, tools and replay results.
+
+The actual helper is also compiled with Zig 0.15.2 in Debug, ReleaseSafe,
+ReleaseFast and ReleaseSmall on the hosted native target. Every input must
+match the fresh Idris oracle. Wrong shifts, tags, ranges, contracts, trailing
+imports and stale capsules are refusal controls. Consumer mutations must
+compile successfully and then fail both native comparison and proof replay.
+
+Finite-reflection mathematics is developed in strict compatible Agda, re-proved
+in Lean without Mathlib and instantiated in the Coq source checker. Full Cubical
+checks a path-equality leg. These are related hand-written proofs, with statement
+correspondence pending; Lean and Agda do not independently certify the Coq parser.
+Cubical is not another independent kernel. No external verified-checker or
+Mathesis admission claim is made. Generic finite reflection is established
+mathematics, not a claim of a new result.
+
+== Experimental MVP acceptance and remaining work
+
+The scalar MVP requires a green exact-head remote gate, both pinned real
+consumer helpers, fresh Idris tables, all-input native comparisons, kernel
+replay, independent serialization and assumption audits, and intended negative
+controls. It produces explicitly scoped evidence, with the whole-boundary
+receipt still INCOMPLETE. Prototype implementation alone is not acceptance.
+
+The next semantic milestone must cover a genuinely different boundary:
+Proven's decode/call relation with pointer carriers and leases, and UAA's
+registration/callback state and refusal behavior. Prove framing, ownership,
+failure paths and source correspondence before admitting those constructs.
+The scalar work does not discharge that milestone or reduce v1 to two helpers.
+Compiler refinement, general import/call closure, runtime state, the complete
+required checker chain and reproducible tool provisioning remain open.
+
+Use extra reasoning effort for these semantic and trust-boundary decisions;
+routine CI plumbing and documentation need less. All heavy validation is
+hosted while the local resource hold remains in force.

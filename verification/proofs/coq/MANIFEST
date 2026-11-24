@@ -2,3 +2,4 @@
 # Format: <source-root>|<module-relative-to-source-root>|gated|quarantine|<note>
 # Ground-truthed 2026-07-17 with coqc.
 verification/proofs/coq|TypeSafety.v|gated| compiles under `coqc`
+verification/atoma/consumer/coq|ScalarSource.v|gated| independent closed-source interpreter and finite reflection

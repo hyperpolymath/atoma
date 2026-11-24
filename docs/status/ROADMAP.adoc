@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: CC-BY-SA-4.0
 // Copyright (c) Jonathan D.A. Jewell <j.d.a.jewell@open.ac.uk>
 = Atoma roadmap
-:revdate: 2026-11-07
+:revdate: 2026-11-24
 
 The active link:../plan/ULTRAPLAN.adoc[v1 plan] owns milestone acceptance and
 estimates. Atoma is experimental. There is no overall readiness percentage.
@@ -20,6 +20,13 @@ removes its production claims, and names `atoma_chora.deed`. The PR's current
 head must independently pass hosted checks before merge.
 
 == Next acceptance
+
+The immediate experimental MVP is scoped by
+link:../decisions/ATOMA-SCALAR-SOURCE.adoc[the closed scalar source decision].
+Its implementation is under remote validation, not yet accepted. It connects
+the actual Proven word encoder and UAA protocol classifier to fresh Idris2
+contracts and independently interprets their source bytes in Coq. It leaves
+pointer/ownership and stateful foreign-boundary obligations explicit.
 
 * Extend the locally passing finite-model replay slice to a checked
   source-to-model argument. Its ECHIDNA/coqchk path requires fresh source/proof

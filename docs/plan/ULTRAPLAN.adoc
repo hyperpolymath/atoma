@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: CC-BY-SA-4.0
 // SPDX-FileCopyrightText: 2026 Jonathan D.A. Jewell <j.d.a.jewell@open.ac.uk>
 = Atoma — soundness-first plan to v1
-:revdate: 2026-11-07
+:revdate: 2026-11-24
 :toc:
 
 Atoma is experimental. The release objective is a useful verifier for an
@@ -44,6 +44,15 @@ The following gaps remain central:
   Guix closure and all generic estate workflows are separate outstanding work.
 
 == Definition of v1
+
+The first experimental MVP is the closed scalar consumer path described in
+link:../decisions/ATOMA-SCALAR-SOURCE.adoc[the scalar source decision]. It is
+currently under remote validation: fresh Idris contracts, actual Proven/UAA
+Zig helpers, all-input native comparisons, independent source interpretation,
+kernel replay and negative controls. Whole-boundary receipts remain INCOMPLETE.
+This milestone precedes v1; it does not discharge memory, state, compiler
+refinement or the full checker chain. #28 merged on 2026-11-24 after its required
+soundness and CI checks passed; consumer source checking follows in #29.
 
 All applicable rows must pass on the release commit. They are conjunctive
 gates, not a readiness percentage.
