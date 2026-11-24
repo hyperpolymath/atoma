@@ -41,6 +41,10 @@ jobs:
         run: bash scripts/atoma-scalar-proof-gate.sh
       - name: Universal decoder theory (Agda, Lean, Coq and Cubical)
         run: bash scripts/atoma-word-proof-gate.sh
+      - name: Preserve canonical repository map for review
+        run: |
+          bash scripts/gen-repo-map.sh .
+          cp docs/architecture/REPOSITORY-MAP.adoc build/scalar-proof-evidence/REPOSITORY-MAP.adoc
       - uses: actions/upload-artifact@v7.0.2
         if: always()
         with:
