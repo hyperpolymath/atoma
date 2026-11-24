@@ -31,6 +31,19 @@ cp verification/atoma/consumer/coq/ScalarSource.v "$work/"
 ) > "$out/theory.txt" 2>&1
 (cd tools/atoma && zig build test && zig build)
 atoma="$root/tools/atoma/zig-out/bin/atoma"
+bash scripts/atoma-consumer-manifest.sh tests/consumer-scalar/consumers.tsv
+for missing in proven unified-api-adapter; do
+    sed "/^$missing[[:space:]]/d" tests/consumer-scalar/consumers.tsv > "$work/missing.tsv"
+    if bash scripts/atoma-consumer-manifest.sh "$work/missing.tsv" > "$out/missing-$missing.txt" 2>&1; then
+        echo "FAIL accepted missing consumer $missing" >&2; exit 1
+    fi
+    grep -q 'both Proven and UAA are required' "$out/missing-$missing.txt"
+done
+cat tests/consumer-scalar/consumers.tsv tests/consumer-scalar/consumers.tsv > "$work/duplicate.tsv"
+if bash scripts/atoma-consumer-manifest.sh "$work/duplicate.tsv" > "$out/duplicate-consumer.txt" 2>&1; then
+    echo 'FAIL accepted duplicate consumers' >&2; exit 1
+fi
+grep -q 'duplicate repository' "$out/duplicate-consumer.txt"
 # These fixture tables are test data only. Real consumer receipts require fresh
 # tables from the pinned Idris ABI modules; never promote these fixtures.
 awk 'BEGIN {for(i=0;i<256;i++) printf "%d %.0f\n",i,i*4294967296+1}' > "$work/encode.tsv"

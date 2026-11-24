@@ -4,6 +4,7 @@
 # Hosted CI only: fresh Idris contracts, actual consumer source, native witnesses.
 set -euo pipefail
 root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+bash "$root/scripts/atoma-consumer-manifest.sh" "$root/tests/consumer-scalar/consumers.tsv"
 evidence_root="$root/build/atoma-evidence/scalar-consumers"
 mkdir -p "$evidence_root"
 out=$(mktemp -d "$evidence_root/run.XXXXXXXX")
