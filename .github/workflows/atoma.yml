@@ -39,6 +39,8 @@ jobs:
           sha256sum scalar-lean.tar.zst > "$GITHUB_WORKSPACE/build/scalar-proof-evidence/lean-archive.sha256"
       - name: Agda then Lean and Coq, Cubical, source falsifiers
         run: bash scripts/atoma-scalar-proof-gate.sh
+      - name: Universal decoder theory (Agda, Lean, Coq and Cubical)
+        run: bash scripts/atoma-word-proof-gate.sh
       - uses: actions/upload-artifact@v7.0.2
         if: always()
         with:
