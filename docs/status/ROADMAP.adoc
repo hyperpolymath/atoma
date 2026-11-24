@@ -19,19 +19,32 @@ Identity/ownership repair instantiates the original RSR template provenance,
 removes its production claims, and names `atoma_chora.deed`. The PR's current
 head must independently pass hosted checks before merge.
 
-== Next acceptance
+== Experimental scalar MVP and next acceptance
 
 The immediate experimental MVP is scoped by
 link:../decisions/ATOMA-SCALAR-SOURCE.adoc[the closed scalar source decision].
-Its implementation is under remote validation, not yet accepted. It connects
+Complete hosted evidence was obtained at
+`3ea192650d752da1e4dbb504c7fa2a6568778aed` in
+https://github.com/hyperpolymath/atoma/actions/runs/45491963944[run 45491963944]:
+both real consumers, every byte input in four Zig build modes, source replay,
+closed assumptions and all five scalar replay attacks. Subsequent gate
+hardening requires both consumers exactly once, validates complete manifest
+records and requires completed evidence from each. Every PR head must pass
+the required checks before merge. The implemented path connects
 the actual Proven word encoder and UAA protocol classifier to fresh Idris2
 contracts and independently interprets their source bytes in Coq. It leaves
 pointer/ownership and stateful foreign-boundary obligations explicit.
 
-* Extend the locally passing finite-model replay slice to a checked
-  source-to-model argument. Its ECHIDNA/coqchk path requires fresh source/proof
-  identity and closed assumptions; it does not establish Zig refinement.
-* Typed semantic boundary and explicit memory/alias counterexample.
+* Proven: prove decoder acceptance iff the entire 64-bit word is a canonical
+  byte encoding, then bind the actual raw-word decoder source and its encoder
+  dependency. Immediate tagged words are not allocated objects; pointer-carrier
+  correspondence and later buffer leases remain separate obligations.
+* UAA: prove state-preserving refusals, selected callback/context identity,
+  busy-state framing and restoration after a normally returning callback.
+  State the serialized access and borrowed-lifetime preconditions explicitly.
+* Extend checked source interpretation to these operations, with an explicit
+  memory/alias counterexample before admitting pointer-bearing effects. The
+  ECHIDNA/coqchk path does not establish general Zig/compiler refinement.
 * Second-language transfer spike before choosing the full sibling sequence.
 
 Store, loops, permissions, compiler refinement and the complete required
@@ -39,7 +52,8 @@ kernel chain remain open. A passing scoped gate is not production readiness.
 
 == Dogfooding status
 
-The frame and u8 examples exercise the local verifier/tooling path. No external
-consumer evidence window or broad CRG qualification has been established.
+The frame and u8 examples exercise the local verifier/tooling path. Proven and
+UAA now supply real scalar helpers and fresh Idris2 oracle evidence in hosted
+CI. No production deployment window or broad CRG qualification is established.
 The four inherited Idris ABI quarantines remain documented and excluded from
 claims about checked implementations. See link:PROOF-STATUS.adoc[proof status].
