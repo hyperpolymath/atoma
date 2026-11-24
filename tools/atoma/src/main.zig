@@ -27,6 +27,7 @@ const canon = @import("canon.zig");
 const frontend = @import("frontend.zig");
 const vc = @import("vc.zig");
 const source = @import("source.zig");
+const scalar = @import("scalar.zig");
 
 const gpa = std.heap.page_allocator;
 
@@ -71,7 +72,7 @@ fn sourceReport(comptime fmt: []const u8, args: anytype) void {
 }
 
 fn usage() noreturn {
-    sayLine("usage: atoma <canon|hash|vc-hash|dk-hash|src-hash|extract|check|vc|source-vc|source-coq|source-coq-audit|source-check|equiv|mutate|ops|selftest> [args]");
+    sayLine("usage: atoma <canon|hash|vc-hash|dk-hash|src-hash|extract|check|vc|source-vc|source-coq|source-coq-audit|source-check|scalar-coq|scalar-coq-audit|equiv|mutate|ops|selftest> [args]");
     std.process.exit(2);
 }
 
@@ -85,7 +86,27 @@ pub fn main() !void {
     if (args.len < 2) usage();
     const cmd = args[1];
 
-    if (std.mem.eql(u8, cmd, "source-vc") or std.mem.eql(u8, cmd, "source-coq") or std.mem.eql(u8, cmd, "source-coq-audit") or std.mem.eql(u8, cmd, "source-check")) {
+    if (std.mem.eql(u8, cmd, "scalar-coq") or std.mem.eql(u8, cmd, "scalar-coq-audit")) {
+        if (args.len != 4) usage();
+        const src = readFile(args[2]) catch |e| {
+            std.debug.print("SCALAR-IO-ERROR: {s}\n", .{@errorName(e)});
+            std.process.exit(3);
+        };
+        const table = readFile(args[3]) catch |e| {
+            std.debug.print("SCALAR-IO-ERROR: {s}\n", .{@errorName(e)});
+            std.process.exit(3);
+        };
+        var out = std.Io.Writer.Allocating.init(gpa);
+        defer out.deinit();
+        scalar.emit(&out.writer, src, table, std.mem.eql(u8, cmd, "scalar-coq-audit")) catch |e| {
+            std.debug.print("SCALAR-REFUSED: {s}\n", .{@errorName(e)});
+            std.process.exit(1);
+        };
+        std.fs.File.stdout().writeAll(out.written()) catch |e| {
+            std.debug.print("SCALAR-IO-ERROR: {s}\n", .{@errorName(e)});
+            std.process.exit(3);
+        };
+    } else if (std.mem.eql(u8, cmd, "source-vc") or std.mem.eql(u8, cmd, "source-coq") or std.mem.eql(u8, cmd, "source-coq-audit") or std.mem.eql(u8, cmd, "source-check")) {
         if (args.len != 3) usage();
         const src = readFile(args[2]) catch |e| {
             print("SOURCE-IO-ERROR {s}: {s}\n", .{ args[2], @errorName(e) });

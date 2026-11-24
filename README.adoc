@@ -6,7 +6,8 @@
 
 Atoma develops source-bound verification for an explicitly closed Zig subset.
 It currently provides canonical contracts, a syntax screen, typechecked Idris2
-specifications, Agda proofs of a store-free model and a finite u8 source pilot.
+specifications, Agda proofs of a store-free model, a finite u8 source pilot,
+and a closed scalar source checker for real Proven and UAA helpers.
 It is not yet a general sound verifier for Zig. Evidence remains
 *INCOMPLETE (Warrant)*: finite-model replay now runs through ECHIDNA and
 coqchk, while compiler/refinement arguments and the full kernel chain remain
@@ -14,12 +15,13 @@ unfinished.
 
 == Build and check
 
-Use Zig 0.15.2, Z3 4.13.3 and the Agda/Idris2/ECHIDNA/Coq profiles in
+Use Zig 0.15.2, Z3 4.13.3, Lean 4.15.0 and the Agda/Idris2/ECHIDNA/Coq profiles in
 link:docs/decisions/ATOMA-TOOLCHAIN.adoc[the toolchain decision].
 From the repository root:
 
 [source,bash]
 ----
+bash scripts/atoma-scalar-proof-gate.sh
 bash scripts/atoma-gate.sh
 ----
 
@@ -30,6 +32,31 @@ It also regenerates source-bound Coq model proofs, runs actual ECHIDNA,
 checks the compiled libraries with coqchk and audits theorem assumptions.
 Evidence is written to `build/atoma-evidence/`. The hosted workflow publishes
 the same evidence and is required on `main`.
+
+== Experimental scalar MVP
+
+The hosted workflow requires the scalar proof gate before the soundness gate.
+It checks strict compatible Agda, Lean/Coq finite reflection, full Cubical and
+source falsifiers, then consumes the exact revisions in
+`tests/consumer-scalar/consumers.tsv`. Proven's byte-word encoder and UAA's tag
+classifier remain pure Zig; their authoritative contracts/oracles are Idris2.
+Each helper is compared with a freshly compiled Idris table for all 256 inputs
+in all four Zig optimization modes. Coq independently interprets the original
+source bytes, followed by ECHIDNA compilation, coqchk and assumption audits.
+
+For one admitted helper and a table containing exactly 256 `index value` rows:
+
+[source,bash]
+----
+bash scripts/atoma-scalar-replay.sh helper.zig contract.tsv /tmp/new-scalar-evidence
+----
+
+The evidence directory must be new. `atoma scalar-coq` only exports a proof
+capsule; successful export is not verification. A supplied table has no Idris
+authority by itself: the consumer gate binds its fresh producer and inputs.
+Whole-boundary receipts remain INCOMPLETE. This experimental scalar path does
+not cover pointer leases, stateful wrappers or compiler refinement. See the
+link:docs/decisions/ATOMA-SCALAR-SOURCE.adoc[admitted grammar and MVP acceptance].
 
 == Current verification boundary
 

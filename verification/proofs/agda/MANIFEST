@@ -6,3 +6,5 @@ verification/atoma/agda|Bv.agda|gated| Atoma finite arithmetic model; safe witho
 verification/atoma/agda|Lin.agda|gated| Atoma resource model; safe without-K
 verification/atoma/agda|Core.agda|gated| Atoma store-free core; safe without-K
 verification/atoma/agda|Soundness.agda|gated| Atoma store-free theorem; not Zig refinement
+verification/atoma/consumer/agda|ScalarReflection.agda|gated| finite reflection; safe cubical-compatible double-check
+verification/atoma/consumer/agda|ScalarReflectionCubical.agda|gated| Cubical path leg of finite reflection

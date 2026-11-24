@@ -16,8 +16,39 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  scalar:
+    name: Scalar source proof gate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - name: Provision scalar proof profile
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends agda-bin=2.6.3-1build1 coq=8.18.0+dfsg-1build2 zstd
+          bash scripts/atoma-download-zig.sh "$RUNNER_TEMP/scalar-zig"
+          cd "$RUNNER_TEMP"
+          curl --proto '=https' --proto-redir '=https' --connect-timeout 20 --max-time 240 -fL --retry 1 https://github.com/leanprover/lean4/releases/download/v4.15.0/lean-4.15.0-linux.tar.zst -o scalar-lean.tar.zst
+          echo 'af71a2569a9f68337de2434829b3008cd8e32c436e9cb6bd8c84a2c2ba3585c9  scalar-lean.tar.zst' | sha256sum -c -
+          tar --zstd -xf scalar-lean.tar.zst
+          echo "$RUNNER_TEMP/lean-4.15.0-linux/bin" >> "$GITHUB_PATH"
+          mkdir -p "$GITHUB_WORKSPACE/build/scalar-proof-evidence"
+          sha256sum scalar-lean.tar.zst > "$GITHUB_WORKSPACE/build/scalar-proof-evidence/lean-archive.sha256"
+      - name: Agda then Lean and Coq, Cubical, source falsifiers
+        run: bash scripts/atoma-scalar-proof-gate.sh
+      - uses: actions/upload-artifact@v7.0.2
+        if: always()
+        with:
+          name: scalar-proof-evidence-${{ github.sha }}
+          path: build/scalar-proof-evidence/
+          if-no-files-found: error
+
   soundness:
     name: Atoma soundness gate
+    needs: [scalar]
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
