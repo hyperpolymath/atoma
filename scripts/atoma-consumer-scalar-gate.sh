@@ -4,8 +4,10 @@
 # Hosted CI only: fresh Idris contracts, actual consumer source, native witnesses.
 set -euo pipefail
 root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-out="$root/build/atoma-evidence/scalar-consumers"
-mkdir -p "$out"
+evidence_root="$root/build/atoma-evidence/scalar-consumers"
+mkdir -p "$evidence_root"
+out=$(mktemp -d "$evidence_root/run.XXXXXXXX")
+echo "Scalar consumer evidence: $out"
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 for tool in git idris2 zig coqc coqchk echidna jq; do command -v "$tool" >/dev/null; done

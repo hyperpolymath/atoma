@@ -38,6 +38,11 @@ awk 'BEGIN {for(i=0;i<256;i++) print i,(i>=1 && i<=9 ? 1 : 0)}' > "$work/known.t
 for fixture in encode known; do
     "$atoma" scalar-coq "tests/consumer-scalar/$fixture.zig" "$work/$fixture.tsv" > "$work/AtomaProof.v"
     bash scripts/atoma-scalar-capsule.sh "tests/consumer-scalar/$fixture.zig" "$work/$fixture.tsv" "$work/AtomaProof.v"
+    # Table line endings affect the input digest, not its numeric contract.
+    sed 's/$/\r/' "$work/$fixture.tsv" > "$work/$fixture-crlf.tsv"
+    "$atoma" scalar-coq "tests/consumer-scalar/$fixture.zig" "$work/$fixture-crlf.tsv" > "$work/CRLF.v"
+    cmp "$work/AtomaProof.v" "$work/CRLF.v"
+    bash scripts/atoma-scalar-capsule.sh "tests/consumer-scalar/$fixture.zig" "$work/$fixture-crlf.tsv" "$work/CRLF.v"
     (cd "$work" && coqc -q AtomaProof.v && coqchk -silent -Q . '' AtomaProof) > "$out/$fixture.txt" 2>&1
     "$atoma" scalar-coq-audit "tests/consumer-scalar/$fixture.zig" "$work/$fixture.tsv" > "$work/Audit.v"
     (cd "$work" && coqc -q Audit.v) > "$out/$fixture-audit.txt" 2>&1

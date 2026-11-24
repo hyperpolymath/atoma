@@ -11,7 +11,7 @@ trap 'rm -f "$expected" "$actual"' EXIT
     printf 'Definition source_bytes : list nat := ['
     od -An -v -tu1 "$1" | awk '{for(i=1;i<=NF;i++){printf "%s%s", sep, $i; sep="; "}}'
     printf '].\nDefinition specification : list N := ['
-    awk 'NF != 2 || $1 !~ /^[0-9]+$/ || $2 !~ /^[0-9]+$/ || $1 != NR-1 {exit 1}
+    awk '{sub(/\r$/, "")} NF != 2 || $1 !~ /^[0-9]+$/ || $2 !~ /^[0-9]+$/ || $1 != NR-1 {exit 1}
          {printf "%s%s%%N", sep, $2; sep="; "} END {if(NR != 256) exit 1}' "$2"
     printf '].\n'
 } > "$expected"
