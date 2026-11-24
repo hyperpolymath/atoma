@@ -29,12 +29,9 @@ jobs:
           set -euo pipefail
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends agda-bin=2.6.3-1build1 coq=8.18.0+dfsg-1build2 zstd
+          bash scripts/atoma-download-zig.sh "$RUNNER_TEMP/scalar-zig"
           cd "$RUNNER_TEMP"
-          curl --proto '=https' --proto-redir '=https' -fL --retry 3 https://ziglang.org/download/0.15.2/zig-x86_64-linux-0.15.2.tar.xz -o scalar-zig.tar.xz
-          echo '02aa270f183da276e5b5920b1dac44a63f1a49e55050ebde3aecc9eb82f93239  scalar-zig.tar.xz' | sha256sum -c -
-          tar -xf scalar-zig.tar.xz
-          echo "$RUNNER_TEMP/zig-x86_64-linux-0.15.2" >> "$GITHUB_PATH"
-          curl --proto '=https' --proto-redir '=https' -fL --retry 3 https://github.com/leanprover/lean4/releases/download/v4.15.0/lean-4.15.0-linux.tar.zst -o scalar-lean.tar.zst
+          curl --proto '=https' --proto-redir '=https' --connect-timeout 20 --max-time 240 -fL --retry 1 https://github.com/leanprover/lean4/releases/download/v4.15.0/lean-4.15.0-linux.tar.zst -o scalar-lean.tar.zst
           tar --zstd -xf scalar-lean.tar.zst
           echo "$RUNNER_TEMP/lean-4.15.0-linux/bin" >> "$GITHUB_PATH"
           mkdir -p "$GITHUB_WORKSPACE/build/scalar-proof-evidence"

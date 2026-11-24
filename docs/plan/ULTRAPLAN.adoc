@@ -52,7 +52,7 @@ Zig helpers, all-input native comparisons, independent source interpretation,
 kernel replay and negative controls. Whole-boundary receipts remain INCOMPLETE.
 This milestone precedes v1; it does not discharge memory, state, compiler
 refinement or the full checker chain. #28 merged on 2026-11-24 after its required
-soundness and CI checks passed; consumer source checking follows in #29.
+soundness and CI checks passed; consumer source checking follows in #30.
 
 All applicable rows must pass on the release commit. They are conjunctive
 gates, not a readiness percentage.

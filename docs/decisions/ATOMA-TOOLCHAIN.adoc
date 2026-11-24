@@ -21,6 +21,12 @@ the entire transitive system environment.
 | Actions | checkout v7.0.1, upload-artifact v7.0.2 | Immutable commits recorded by `gh actions-lock` in `actions.lock`; no credential persistence; read-only repository token
 |===
 
+The Zig downloader also permits HTTPS mirrors while retaining the exact same
+archive SHA-256. Each transfer has a bounded timeout; an integrity mismatch is
+fatal. Availability fallback does not admit a different compiler. Scalar proof
+CI additionally uses Lean 4.15.0's fixed release archive and records its digest;
+an independently pinned expected Lean archive digest remains provisioning debt.
+
 Agda runs `--safe --without-K` and fresh interface checks in both profiles.
 These flags do not prove that a Dedukti/CIC export exists. CI must demonstrate
 the pinned release profile; a local pass on newer Idris/Agda is not substituted
