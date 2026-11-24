@@ -6,9 +6,16 @@ open import Agda.Builtin.Nat using (Nat; zero; suc)
 open import Agda.Builtin.Bool using (Bool; true; false)
 open import Agda.Builtin.Equality using (_≡_; refl)
 
-data Fin : Nat → Set where
-  first : ∀ {n} → Fin (suc n)
-  next : ∀ {n} → Fin n → Fin (suc n)
+data Empty : Set where
+
+-- An unindexed sum avoids constructor-index injectivity in Cubical matching.
+data Step (A : Set) : Set where
+  first : Step A
+  next : A → Step A
+
+Fin : Nat → Set
+Fin zero = Empty
+Fin (suc n) = Step (Fin n)
 
 _&&_ : Bool → Bool → Bool
 true && b = b

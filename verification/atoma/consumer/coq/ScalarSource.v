@@ -7,6 +7,7 @@
 From Coq Require Import List String Ascii Arith Bool NArith.
 Import ListNotations.
 Open Scope string_scope.
+Open Scope nat_scope.
 
 Definition white (c : nat) := existsb (Nat.eqb c) [9; 10; 13; 32].
 Definition digit (c : nat) := (48 <=? c) && (c <=? 57).

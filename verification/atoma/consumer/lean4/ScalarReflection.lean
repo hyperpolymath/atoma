@@ -10,7 +10,8 @@ theorem allBefore_sound (n : Nat) (p : Nat → Bool)
   induction n with
   | zero => intro i hi; exact False.elim (Nat.not_lt_zero i hi)
   | succ n ih =>
-    have parts := Bool.and_eq_true.mp h
+    have parts : allBefore n p = true ∧ p n = true := by
+      simpa only [allBefore, Bool.and_eq_true] using h
     intro i hi
     rcases Nat.eq_or_lt_of_le (Nat.le_of_lt_succ hi) with he | hl
     · simpa [he] using parts.2

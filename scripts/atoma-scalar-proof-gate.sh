@@ -18,13 +18,13 @@ cp verification/atoma/consumer/lean4/ScalarReflection.lean "$work/"
 cp verification/atoma/consumer/coq/ScalarSource.v "$work/"
 (
     cd "$work"
-    agda --safe --without-K --cubical-compatible --double-check ScalarReflection.agda
+    agda --safe --without-K --cubical-compatible --double-check --warning=error ScalarReflection.agda
     lean ScalarReflection.lean > "$out/lean-assumptions.txt" 2>&1
     [[ $(grep -c 'does not depend on any axioms' "$out/lean-assumptions.txt") == 2 ]]
     coqc -q ScalarSource.v > "$out/coq-assumptions.txt" 2>&1
     [[ $(grep -c '^Closed under the global context$' "$out/coq-assumptions.txt") == 2 ]]
     coqchk -silent -Q . '' ScalarSource > "$out/coqchk.txt" 2>&1
-    agda --safe --cubical --double-check ScalarReflectionCubical.agda
+    agda --safe --cubical --double-check --warning=error ScalarReflectionCubical.agda
 ) > "$out/theory.txt" 2>&1
 (cd tools/atoma && zig build test && zig build)
 atoma="$root/tools/atoma/zig-out/bin/atoma"
