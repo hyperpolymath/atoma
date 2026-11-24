@@ -55,8 +55,12 @@ decode (word h b l true) with allZero 24 h | allZero 31 l
 ... | true | false = nothing
 ... | false | _ = nothing
 
+fromMaybe : {A : Set} → A → Maybe A → A
+fromMaybe fallback nothing = fallback
+fromMaybe fallback (just a) = a
+
 just-injective : {A : Set} {a b : A} → just a ≡ just b → a ≡ b
-just-injective refl = refl
+just-injective {a = a} eq = cong (fromMaybe a) eq
 
 impossible : {A B : Set} {b : A} → nothing ≡ just b → B
 impossible ()
