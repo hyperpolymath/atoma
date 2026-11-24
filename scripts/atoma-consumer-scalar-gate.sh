@@ -104,6 +104,9 @@ ZIG
         open:["Zig compiler refinement","Idris primitive/compiler correspondence","pointer leases","whole-wrapper effects"]}' > "$evidence/receipt.json"
     printf 'CONSUMER-SCALAR-CHECKED %s %s\n' "$repo" "$revision"
 done < "$out/consumers.tsv"
+[[ -s "$out/proven/receipt.json" && -s "$out/unified-api-adapter/receipt.json" ]] || {
+    echo 'FAIL both consumer executions must complete' >&2; exit 1;
+}
 bash "$root/scripts/atoma-scalar-replay-falsifiers.sh" "$out/proven/replay/source.zig" \
     "$out/proven/contract.tsv" "$out/replay-falsifiers"
 echo 'CONSUMER SCALARS PASS: source interpretation and native witnesses; full boundary remains INCOMPLETE'
