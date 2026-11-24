@@ -33,7 +33,7 @@ cp verification/atoma/consumer/coq/ScalarSource.v "$work/"
 atoma="$root/tools/atoma/zig-out/bin/atoma"
 bash scripts/atoma-consumer-manifest.sh tests/consumer-scalar/consumers.tsv
 for missing in proven unified-api-adapter; do
-    sed "/^$missing[[:space:]]/d" tests/consumer-scalar/consumers.tsv > "$work/missing.tsv"
+    sed "/^${missing}[[:space:]]/d" tests/consumer-scalar/consumers.tsv > "$work/missing.tsv"
     if bash scripts/atoma-consumer-manifest.sh "$work/missing.tsv" > "$out/missing-$missing.txt" 2>&1; then
         echo "FAIL accepted missing consumer $missing" >&2; exit 1
     fi
