@@ -19,12 +19,15 @@ cp verification/atoma/consumer/coq/ScalarSource.v "$work/"
 (
     cd "$work"
     agda --safe --without-K --cubical-compatible --double-check --warning=error ScalarReflection.agda
-    lean ScalarReflection.lean > "$out/lean-assumptions.txt" 2>&1
-    [[ $(grep -c 'does not depend on any axioms' "$out/lean-assumptions.txt") == 2 ]]
-    coqc -q ScalarSource.v > "$out/coq-assumptions.txt" 2>&1
-    [[ $(grep -c '^Closed under the global context$' "$out/coq-assumptions.txt") == 2 ]]
-    coqchk -silent -Q . '' ScalarSource > "$out/coqchk.txt" 2>&1
-    agda --safe --cubical --double-check --warning=error ScalarReflectionCubical.agda
+    # Collect each independent leg's diagnostics, but every leg is mandatory.
+    theory_failed=0
+    if ! lean ScalarReflection.lean > "$out/lean-assumptions.txt" 2>&1; then theory_failed=1; fi
+    if [[ $(grep -c 'does not depend on any axioms' "$out/lean-assumptions.txt") != 2 ]]; then theory_failed=1; fi
+    if ! coqc -q ScalarSource.v > "$out/coq-assumptions.txt" 2>&1; then theory_failed=1; fi
+    if [[ $(grep -c '^Closed under the global context$' "$out/coq-assumptions.txt") != 2 ]]; then theory_failed=1; fi
+    if ! coqchk -silent -Q . '' ScalarSource > "$out/coqchk.txt" 2>&1; then theory_failed=1; fi
+    if ! agda --safe --cubical --double-check --warning=error ScalarReflectionCubical.agda > "$out/cubical.txt" 2>&1; then theory_failed=1; fi
+    [[ $theory_failed == 0 ]]
 ) > "$out/theory.txt" 2>&1
 (cd tools/atoma && zig build test && zig build)
 atoma="$root/tools/atoma/zig-out/bin/atoma"
