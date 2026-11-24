@@ -5,7 +5,7 @@
 set -euo pipefail
 [[ $# == 1 ]] || exit 2
 declare -A seen=()
-while read -r repo revision helper oracle extra; do
+while read -r repo revision helper oracle extra || [[ -n ${repo:-} ]]; do
     [[ $repo == \#* || -z $repo ]] && continue
     case "$repo" in proven|unified-api-adapter) ;; *) echo 'Invalid consumer manifest: unknown repository' >&2; exit 1 ;; esac
     [[ -z ${seen[$repo]:-} ]] || { echo 'Invalid consumer manifest: duplicate repository' >&2; exit 1; }

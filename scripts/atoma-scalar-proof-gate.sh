@@ -44,6 +44,15 @@ if bash scripts/atoma-consumer-manifest.sh "$work/duplicate.tsv" > "$out/duplica
     echo 'FAIL accepted duplicate consumers' >&2; exit 1
 fi
 grep -q 'duplicate repository' "$out/duplicate-consumer.txt"
+cp tests/consumer-scalar/consumers.tsv "$work/unterminated.tsv"
+truncate -s -1 "$work/unterminated.tsv"
+bash scripts/atoma-consumer-manifest.sh "$work/unterminated.tsv"
+cat tests/consumer-scalar/consumers.tsv > "$work/unterminated-duplicate.tsv"
+awk '/^proven[[:space:]]/ {printf "%s", $0}' tests/consumer-scalar/consumers.tsv >> "$work/unterminated-duplicate.tsv"
+if bash scripts/atoma-consumer-manifest.sh "$work/unterminated-duplicate.tsv" > "$out/unterminated-duplicate.txt" 2>&1; then
+    echo 'FAIL accepted unterminated duplicate consumer' >&2; exit 1
+fi
+grep -q 'duplicate repository' "$out/unterminated-duplicate.txt"
 # These fixture tables are test data only. Real consumer receipts require fresh
 # tables from the pinned Idris ABI modules; never promote these fixtures.
 awk 'BEGIN {for(i=0;i<256;i++) printf "%d %.0f\n",i,i*4294967296+1}' > "$work/encode.tsv"

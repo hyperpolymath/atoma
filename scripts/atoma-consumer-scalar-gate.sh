@@ -4,20 +4,20 @@
 # Hosted CI only: fresh Idris contracts, actual consumer source, native witnesses.
 set -euo pipefail
 root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-bash "$root/scripts/atoma-consumer-manifest.sh" "$root/tests/consumer-scalar/consumers.tsv"
 evidence_root="$root/build/atoma-evidence/scalar-consumers"
 mkdir -p "$evidence_root"
 out=$(mktemp -d "$evidence_root/run.XXXXXXXX")
 echo "Scalar consumer evidence: $out"
+cp "$root/tests/consumer-scalar/consumers.tsv" "$out/"
+bash "$root/scripts/atoma-consumer-manifest.sh" "$out/consumers.tsv"
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 for tool in git idris2 zig coqc coqchk echidna jq; do command -v "$tool" >/dev/null; done
 [[ $(zig version) == 0.15.2 ]]
 idris2 --version > "$out/idris-version.txt"
 zig env > "$out/zig-environment.json"
-cp "$root/tests/consumer-scalar/consumers.tsv" "$out/"
 
-while read -r repo revision helper oracle extra; do
+while read -r repo revision helper oracle extra || [[ -n ${repo:-} ]]; do
     [[ $repo == \#* || -z $repo ]] && continue
     [[ -z ${extra:-} && $revision =~ ^[0-9a-f]{40}$ ]]
     case "$repo" in proven|unified-api-adapter) ;; *) exit 1 ;; esac
@@ -103,7 +103,7 @@ ZIG
         replay:"original bytes interpreted in Coq; ECHIDNA plus coqchk and assumption audit",
         open:["Zig compiler refinement","Idris primitive/compiler correspondence","pointer leases","whole-wrapper effects"]}' > "$evidence/receipt.json"
     printf 'CONSUMER-SCALAR-CHECKED %s %s\n' "$repo" "$revision"
-done < "$root/tests/consumer-scalar/consumers.tsv"
+done < "$out/consumers.tsv"
 bash "$root/scripts/atoma-scalar-replay-falsifiers.sh" "$out/proven/replay/source.zig" \
     "$out/proven/contract.tsv" "$out/replay-falsifiers"
 echo 'CONSUMER SCALARS PASS: source interpretation and native witnesses; full boundary remains INCOMPLETE'
