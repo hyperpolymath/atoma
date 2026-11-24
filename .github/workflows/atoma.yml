@@ -16,31 +16,6 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  soundness:
-    name: Atoma soundness gate
-    runs-on: ubuntu-24.04
-    timeout-minutes: 45
-    steps:
-      - uses: actions/checkout@v7.0.1
-        with:
-          persist-credentials: false
-      - name: Provision pinned proof tools
-        run: bash scripts/atoma-ci-toolchain.sh
-      - name: Provision source-model replay tools
-        run: bash scripts/atoma-ci-replay-toolchain.sh
-      - name: Run required source, contract and proof checks
-        run: bash scripts/atoma-gate.sh
-      - name: Preserve evidence even on failure
-        if: always()
-        uses: actions/upload-artifact@v7.0.2
-        with:
-          name: atoma-evidence-${{ github.sha }}
-          path: |
-            build/atoma-evidence/
-            examples/atoma/frame-v1/witness/
-          if-no-files-found: error
-          retention-days: 30
-
   scalar:
     name: Scalar source proof gate
     runs-on: ubuntu-24.04
@@ -73,9 +48,35 @@ jobs:
           path: build/scalar-proof-evidence/
           if-no-files-found: error
 
+  soundness:
+    name: Atoma soundness gate
+    needs: [scalar]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - name: Provision pinned proof tools
+        run: bash scripts/atoma-ci-toolchain.sh
+      - name: Provision source-model replay tools
+        run: bash scripts/atoma-ci-replay-toolchain.sh
+      - name: Run required source, contract and proof checks
+        run: bash scripts/atoma-gate.sh
+      - name: Preserve evidence even on failure
+        if: always()
+        uses: actions/upload-artifact@v7.0.2
+        with:
+          name: atoma-evidence-${{ github.sha }}
+          path: |
+            build/atoma-evidence/
+            examples/atoma/frame-v1/witness/
+          if-no-files-found: error
+          retention-days: 30
+
   gate:
     name: CI/gate
-    needs: [soundness, scalar]
+    needs: [soundness]
     if: ${{ always() }}
     runs-on: ubuntu-24.04
     timeout-minutes: 2
@@ -83,5 +84,4 @@ jobs:
       - name: Require successful source, contract and proof checks
         env:
           SOUNDNESS_RESULT: ${{ needs.soundness.result }}
-          SCALAR_RESULT: ${{ needs.scalar.result }}
-        run: test "$SOUNDNESS_RESULT" = success && test "$SCALAR_RESULT" = success
+        run: test "$SOUNDNESS_RESULT" = success
