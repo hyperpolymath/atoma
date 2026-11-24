@@ -40,3 +40,15 @@ jobs:
             examples/atoma/frame-v1/witness/
           if-no-files-found: error
           retention-days: 30
+
+  gate:
+    name: CI/gate
+    needs: [soundness]
+    if: ${{ always() }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    steps:
+      - name: Require successful source, contract and proof checks
+        env:
+          SOUNDNESS_RESULT: ${{ needs.soundness.result }}
+        run: test "$SOUNDNESS_RESULT" = success
