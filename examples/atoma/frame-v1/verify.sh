@@ -66,7 +66,7 @@ bash "$root/scripts/atoma-check-idris.sh" || die "F0.1 Idris2 contract/extractio
 atoma_tests=0
 test_log=$(mktemp)
 trap 'rm -f "$test_log"' EXIT
-for m in canon frontend vc source; do
+for m in canon frontend vc source scalar; do
     "$ZIG" test "$root/tools/atoma/src/$m.zig" > "$test_log" 2>&1 || {
         cat "$test_log" >&2; die "unit tests in $m.zig"
     }
@@ -74,7 +74,7 @@ for m in canon frontend vc source; do
     [ -n "$n" ] || die "cannot count the tests in $m.zig"
     atoma_tests=$((atoma_tests + n))
 done
-printf 'atoma %s tests (canon + frontend + vc + source)\n' "$atoma_tests"
+printf 'atoma %s tests (canon + frontend + vc + source + scalar)\n' "$atoma_tests"
 
 cd "$here"
 

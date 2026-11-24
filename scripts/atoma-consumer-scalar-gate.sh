@@ -50,11 +50,11 @@ while read -r repo revision helper oracle extra; do
     (cd "$run"; idris2 --total -Werror --codegen refc -o oracle Main.idr) > "$evidence/idris-build.txt" 2>&1 || {
         cat "$evidence/idris-build.txt" >&2; exit 1;
     }
-    ! grep -q '^Error:' "$evidence/idris-build.txt"
+    if grep -q '^Error:' "$evidence/idris-build.txt"; then cat "$evidence/idris-build.txt" >&2; exit 1; fi
     [[ -x "$run/build/exec/oracle" ]]
     (cd "$run"; printf ':m\n:q\n' | idris2 --no-banner Main.idr) > "$evidence/idris-holes.txt" 2>&1
     grep -q 'No holes' "$evidence/idris-holes.txt"
-    ! grep -q '^Error:' "$evidence/idris-holes.txt"
+    if grep -q '^Error:' "$evidence/idris-holes.txt"; then cat "$evidence/idris-holes.txt" >&2; exit 1; fi
     "$run/build/exec/oracle" > "$evidence/contract.tsv"
     # A standalone pure Zig caller tests the compiled helper. No C FFI is added.
     cat > "$run/runner.zig" <<ZIG
@@ -99,6 +99,7 @@ ZIG
         native_modes:["Debug","ReleaseSafe","ReleaseFast","ReleaseSmall"],
         replay:"original bytes interpreted in Coq; ECHIDNA plus coqchk and assumption audit",
         open:["Zig compiler refinement","Idris primitive/compiler correspondence","pointer leases","whole-wrapper effects"]}' > "$evidence/receipt.json"
+    printf 'CONSUMER-SCALAR-CHECKED %s %s\n' "$repo" "$revision"
 done < "$root/tests/consumer-scalar/consumers.tsv"
 bash "$root/scripts/atoma-scalar-replay-falsifiers.sh" "$out/proven/replay/source.zig" \
     "$out/proven/contract.tsv" "$out/replay-falsifiers"

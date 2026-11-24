@@ -32,6 +32,7 @@ jobs:
           bash scripts/atoma-download-zig.sh "$RUNNER_TEMP/scalar-zig"
           cd "$RUNNER_TEMP"
           curl --proto '=https' --proto-redir '=https' --connect-timeout 20 --max-time 240 -fL --retry 1 https://github.com/leanprover/lean4/releases/download/v4.15.0/lean-4.15.0-linux.tar.zst -o scalar-lean.tar.zst
+          echo 'af71a2569a9f68337de2434829b3008cd8e32c436e9cb6bd8c84a2c2ba3585c9  scalar-lean.tar.zst' | sha256sum -c -
           tar --zstd -xf scalar-lean.tar.zst
           echo "$RUNNER_TEMP/lean-4.15.0-linux/bin" >> "$GITHUB_PATH"
           mkdir -p "$GITHUB_WORKSPACE/build/scalar-proof-evidence"
