@@ -15,7 +15,7 @@ case $("$AGDA" --version) in
     'Agda version 2.6.3'|'Agda version 2.6.4.3') ;;
     *) echo 'FAIL unsupported Agda version'; exit 1 ;;
 esac
-[[ $("$IDRIS2" --version) == 'Idris 2, version 0.8.0'* ]] || { echo 'FAIL expected Idris2 0.8.0'; exit 1; }
+[[ $("$IDRIS2" --version) == 'Idris 2, version 0.8.0-b6cbc25d5' ]] || { echo 'FAIL expected Idris2 0.8.0-b6cbc25d5'; exit 1; }
 evidence="$root/build/atoma-evidence"
 mkdir -p "$evidence"
 {
@@ -76,6 +76,7 @@ bash scripts/atoma-gate-falsifiers.sh | tee "$evidence/falsifiers.txt"
 bash scripts/atoma-replay-gate.sh | tee "$evidence/replay.txt"
 bash scripts/atoma-consumer-scalar-gate.sh | tee "$evidence/scalar-consumers.txt"
 bash scripts/atoma-consumer-source-gate.sh | tee "$evidence/source-consumers.txt"
+bash scripts/atoma-consumer-wrapper-gate.sh | tee "$evidence/wrapper-consumers.txt"
 # Bind the source, contracts, proof sources and gate definitions to this run.
 # Exclude generated caches/witnesses to avoid self-referential digests.
 find tools/atoma/src examples/atoma/frame-v1/src examples/atoma/frame-v1/abi \
@@ -86,4 +87,3 @@ sha256sum tools/atoma/build.zig scripts/atoma-*.sh examples/atoma/frame-v1/verif
     verification/proofs/{agda,idris2}/MANIFEST .github/workflows/atoma.yml >> "$evidence/inputs.sha256"
 cp examples/atoma/frame-v1/witness/phase0.receipt.json "$evidence/"
 echo 'ATOMA GATE PASS — INCOMPLETE (Warrant); closed source profiles replayed; compiler and foreign-boundary refinement unproved'
-

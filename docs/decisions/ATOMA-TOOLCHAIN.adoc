@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: CC-BY-SA-4.0
 // SPDX-FileCopyrightText: 2026 Jonathan D.A. Jewell <j.d.a.jewell@open.ac.uk>
 = Atoma CI toolchain and bounded provisioning deviation
-:revdate: 2026-11-07
+:revdate: 2026-11-25
 
 The preferred estate route is a pinned Guix/container closure. Atoma's inherited
 provisioning does not currently provide its proof stack. To make this repair
@@ -14,7 +14,7 @@ the entire transitive system environment.
 | Tool | CI input | Integrity / local comparison
 | Zig | 0.15.2 official x86_64 Linux archive | SHA-256 pinned in installer; same version locally
 | Z3 | 4.13.3 official x86_64 glibc 2.35 archive | SHA-256 pinned in installer; local Debian 4.13.3-1 also exercised
-| Idris2 | v0.8.0 commit `15a3e4e70843f7a34100f6470c04b791330788df`, Chez bootstrap | Exact fetched commit checked; local 0.8.0-b6cbc25d5 is a separate recorded profile
+| Idris2 | commit `b6cbc25d5cd2ef2a250556266fd7b68dfc360f8b`, Chez bootstrap | Exact fetched commit and `0.8.0-b6cbc25d5` version checked; same compiler/runtime profile required by both native consumer gates
 | Agda | Ubuntu package `agda-bin=2.6.3-1build1` | apt authentication and exact package version; local Debian 2.6.4.3-1+b2 is a separate recorded profile
 | Coq replay | Ubuntu Noble `coq=8.18.0+dfsg-1build2` | coqc and coqchk from the authenticated package; local Rocq 9.2 is a separate recorded profile
 | ECHIDNA | `2ab7574ae1e574b0e881422fde6252bf79dea178`, locked release build, Rust 1.99.0 | No default optional prover features; local build uses Rust 1.99.1. This consumes the existing Rust verifier; it adds no Rust implementation proof claim

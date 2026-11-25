@@ -1,0 +1,79 @@
+// SPDX-License-Identifier: CC-BY-SA-4.0
+= Conditional ownership and actual Zig wrappers
+:revdate: 2026-11-25
+
+== Admitted source and result
+
+This experimental slice parses the original complete `registry.zig` and
+`header_refc.zig` modules. It admits closed signatures, imports, surrounding
+declarations, and an ordered call/loop grammar. Numeric guards become operands
+of the operational interpretation. Changed callback arguments, missing cleanup,
+reordered state updates, changed span guards and changed loop bounds must refuse.
+It is not a general Zig parser or a compiler-refinement theorem.
+
+UAA's theorem covers `uaa_registry_call`: initial idle state, all normal exits,
+busy refusal, invalid-span callback refusal and preservation of endpoint
+identities under a callback-frame premise. The actual imported state kernel is
+checked independently; the protocol-tag source must export `known` and parse as
+the 1..9 range. A renamed-export mutation must be rejected.
+The surrounding create/destroy/register/unregister declarations are closed by
+the grammar and exercised natively, but do not acquire ownership theorems merely
+because their tokens match. Allocator correctness remains assumed.
+
+Proven's theorem covers the actual `header_refc.detect` loop: under the explicit
+foreign-step contract, its checked execution equals the authoritative Boolean
+fold. Every iteration consumes one element of the borrowed list; the read count
+is bounded by its length. The whole public `core.headerHasCrlf` entry, conversion
+from machine pointer to slice, private RefC runtime and compiler remain outside
+this refinement. The retained `bits8.zig` bytes identify that assumed carrier;
+they are not promoted to a pointer-validity proof by appearing in a capsule.
+
+== Ownership premises
+
+* One live registry allocation, serialized owner access, no stale-pointer use.
+* Callback and context are valid when invoked; registration retains their
+  identities. The owner must keep them valid while registration can be called,
+  or unregister before their storage/code lifetime ends.
+* The callback may change its own disjoint context. It must preserve registry
+  storage, keep borrowed input readable and immutable, and return normally.
+* No concurrent writes, asynchronous retention, non-local exit, process abort,
+  arbitrary raw-alias mutation or compiler correctness is established here.
+* Proven receives a readable immutable span for its synchronous call. The
+  foreign RefC step returns a canonical state implementing the Idris contract
+  and does not write the borrowed span. Immediate tagged values are not heap
+  objects and must not be dereferenced as pointers.
+
+These are quantified or stated premises, not facts inferred from non-nullness.
+The UAA native raw-alias fixture deliberately deletes an endpoint during a
+callback and demonstrates that `finish` does not restore the original frame.
+That counterexample must remain visible; it prevents unconditional safety claims.
+
+== Evidence and status
+
+Idris2 owns both engineering contracts. UAA's linear Lease checks use of an
+already-acquired logical owner: acquisition, unforgeability and machine aliases
+are not proved by its constructors. Constructors are hidden, the resource
+payload is linear, and release requires a consuming finalizer. Neither direct
+duplication nor destruct-and-reconstruct duplication may type check. Wrapping
+an already-copyable value does not establish exclusive machine ownership.
+Proven proves checked scanning against its actual ByteKernel fold. Native tests
+exercise real Zig wrappers and exported ABI; no FFI/API is implemented in C.
+
+Compatible Agda is checked with safe, without-K, cubical-compatible and
+double-check flags, followed by an audited Lean re-proof and full Cubical paths.
+The independent Coq source interpretation adds kernel checking and ECHIDNA
+replay. Hand re-proofs remain BRIDGE-PENDING; full Cubical is not an independent
+kernel. No PWG promotion, universal native-memory safety or COMPLETE receipt.
+
+The required source/theory jobs and combined consumer replay must pass on the
+exact PR head before this slice is accepted. Qualification evidence is recorded
+in https://github.com/hyperpolymath/atoma/pull/33[the implementation PR]; the
+presence of these files alone is not a successful check or a promotion.
+
+== Next obligations
+
+Connect acquisition/release and callback registration lifetimes to an actual
+heap model; prove the public pointer-to-slice entry; extend beyond normal return;
+discharge or precisely retain foreign-call assumptions; reconcile statement
+identity across kernels. Checked generation handles may support a future
+versioned ABI, but this slice changes no ABI and silently repairs no stale handle.
