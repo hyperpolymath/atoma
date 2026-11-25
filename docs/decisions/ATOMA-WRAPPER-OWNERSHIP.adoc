@@ -61,8 +61,10 @@ The independent Coq source interpretation adds kernel checking and ECHIDNA
 replay. Hand re-proofs remain BRIDGE-PENDING; full Cubical is not an independent
 kernel. No PWG promotion, universal native-memory safety or COMPLETE receipt.
 
-Hosted qualification is pending. The required source/theory jobs and combined
-consumer replay must pass on the exact PR head before this slice is accepted.
+The required source/theory jobs and combined consumer replay must pass on the
+exact PR head before this slice is accepted. Qualification evidence is recorded
+in https://github.com/hyperpolymath/atoma/pull/33[the implementation PR]; the
+presence of these files alone is not a successful check or a promotion.
 
 == Next obligations
 

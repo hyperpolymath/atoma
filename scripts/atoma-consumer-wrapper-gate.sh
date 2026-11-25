@@ -28,9 +28,12 @@ for profile in header registry; do
     EVIDENCE_DIR="$out/$profile/native" bash "$checkout/scripts/test-header-bridge.sh"
     [[ $(cat "$out/$profile/native/result.txt") == PASS ]]
     [[ $(cat "$out/$profile/native/ownership/result.txt") == PASS ]]
+    [[ $(cat "$out/$profile/native/ownership-controls/result.txt") == PASS ]]
   else
     EVIDENCE_DIR="$out/$profile/native" bash "$checkout/scripts/check-registry-ownership.sh"
     [[ $(cat "$out/$profile/native/result.txt") == PASS ]]
+    EVIDENCE_DIR="$out/$profile/native-controls" bash "$checkout/scripts/check-registry-ownership-controls.sh"
+    [[ $(cat "$out/$profile/native-controls/result.txt") == PASS ]]
   fi
   bash "$root/scripts/atoma-source-profile-replay.sh" "$profile-wrapper" "$checkout/$source" "$checkout/$dependency" "$out/$profile/replay"
 done

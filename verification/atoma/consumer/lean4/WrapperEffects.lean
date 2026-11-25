@@ -11,6 +11,10 @@ theorem normalReturnFrame (r m : α) (after : Registry α)
   rfl
 theorem invalidSpanCleanup (r m : α) : finish (Registry.mk r m true) = ⟨r, m, false⟩ := rfl
 theorem aliasCounterexample : finish (Registry.mk false true true) = ⟨false, true, false⟩ := rfl
+theorem aliasBreaksFrame : finish (Registry.mk false true true) ≠ Registry.mk true true false := by
+  intro h
+  have bad := congrArg Registry.rest h
+  cases bad
 def fold (step : Bool → β → Bool) (s : Bool) : List β → Bool
   | [] => s
   | b :: bs => fold step (step s b) bs
@@ -31,5 +35,6 @@ theorem scanRefinesFold (step : Bool → β → Bool) (foreign : Bool → β →
 #print axioms normalReturnFrame
 #print axioms invalidSpanCleanup
 #print axioms aliasCounterexample
+#print axioms aliasBreaksFrame
 #print axioms scanRefinesFold
 end WrapperEffects

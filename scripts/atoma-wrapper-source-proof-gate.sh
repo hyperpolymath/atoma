@@ -24,7 +24,7 @@ cd "$work"
 for library in ScalarSource RegistrySource WrapperSource; do
   coqc -q "$library.v" > "$out/$library.txt" 2>&1
 done
-[[ $(grep -c '^Closed under the global context$' "$out/WrapperSource.txt") == 7 ]]
+[[ $(grep -c '^Closed under the global context$' "$out/WrapperSource.txt") == 8 ]]
 for profile in registry header; do
   dependency=registry_state.zig; [[ $profile != header ]] || dependency=bits8.zig
   bash "$root/scripts/atoma-wrapper-capsule.sh" "$profile" "$profile.zig" "$dependency" protocol_tag.zig > AtomaProof.v

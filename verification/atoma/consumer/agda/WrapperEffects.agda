@@ -36,6 +36,10 @@ invalid-span-cleanup r m = refl
 alias-counterexample : finish (registry false true true) ≡ registry false true false
 alias-counterexample = refl
 
+data Empty : Set where
+alias-breaks-frame : finish (registry false true true) ≡ registry true true false → Empty
+alias-breaks-frame ()
+
 fold : {B : Set} → (Bool → B → Bool) → Bool → List B → Bool
 fold step s [] = s
 fold step s (b ∷ bs) = fold step (step s b) bs

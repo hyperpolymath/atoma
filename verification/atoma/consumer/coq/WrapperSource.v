@@ -82,15 +82,15 @@ Record header_program := HeaderProgram { initial_state : nat; maximum_state : na
 Definition header_canonical := HeaderProgram 0 1 1.
 Definition parse_scan (ts : list string) : option header_program :=
  match ts with
- | [final] =>
+ | ["var";"state";":";"u8";"=";initial;";";"for";"(";"bytes";")";"|";"b";"|";"{";"const";"result";"=";"idris2_trampoline";"(";"Proven_SafeHeader_ByteKernel_headerStep";"(";"bits8";".";"encode";"(";"state";")";",";"bits8";".";"encode";"(";"b";")";")";")";";";"const";"next";"=";"try";"bits8";".";"decode";"(";"result";")";";";"if";"(";"next";">";maximum;")";"return";"error";".";"InvalidRefcResult";";";"state";"=";"next";";";"}";"return";"state";"==";final;";"] =>
    match ScalarSource.decimal initial,ScalarSource.decimal maximum,ScalarSource.decimal final with
    | Some i,Some m,Some f => Some (HeaderProgram i m f) | _,_,_ => None end
  | _ => None end.
 Definition parse_header (bytes : list nat) : option header_program :=
  match tokenize bytes with
- | Some ts => match RegistrySource.strip ["const";"bits8";"=";"@";"import";"(";"quoted:refc/bits8.zig";")";";";"extern";"fn";"Proven_SafeHeader_ByteKernel_headerStep";"(";"?";"*";"anyopaque";",";"?";"*";"anyopaque";")";"callconv";"(";".";"c";")";"?";"*";"anyopaque";";";"extern";"fn";"idris2_trampoline";"(";"?";"*";"anyopaque";")";"callconv";"(";".";"c";")";"?";"*";"anyopaque";";";"pub";"fn";"detect";"(";"bytes";":";"[";"]";"const";"u8";")";"error";"{"] ts with
+ | Some ts => match RegistrySource.strip ["const";"bits8";"=";"@";"import";"(";"quoted:refc/bits8.zig";")";";";"extern";"fn";"Proven_SafeHeader_ByteKernel_headerStep";"(";"?";"*";"anyopaque";",";"?";"*";"anyopaque";")";"callconv";"(";".";"c";")";"?";"*";"anyopaque";";";"extern";"fn";"idris2_trampoline";"(";"?";"*";"anyopaque";")";"callconv";"(";".";"c";")";"?";"*";"anyopaque";";";"pub";"fn";"detect";"(";"bytes";":";"[";"]";"const";"u8";")";"error";"{";"InvalidRefcResult";"}";"!";"bool";"{"] ts with
    | Some tail => match RegistrySource.body (List.length tail) 0 [] tail with
-     | Some (b,rest) => if RegistrySource.same rest ["!";"bool";"{";"var";"state";":";"u8";"=";"0";";";"for";"(";"bytes";")";"|";"b";"|";"{";"const";"result";"=";"idris2_trampoline";"(";"Proven_SafeHeader_ByteKernel_headerStep";"(";"bits8";".";"encode";"(";"state";")";",";"bits8";".";"encode";"(";"b";")";")";")";";";"const";"next";"=";"try";"bits8";".";"decode";"(";"result";")";";";"if";"(";"next";">";"1";")";"return";"error";".";"InvalidRefcResult";";";"state";"=";"next";";";"}";"return";"state";"==";"1";";";"}";"test";"{";"_";"=";"bits8";";";"}"] then parse_scan b else None
+     | Some (b,rest) => if RegistrySource.same rest ["test";"{";"_";"=";"bits8";";";"}"] then parse_scan b else None
      | None => None end
    | None => None end
  | None => None end.
@@ -168,8 +168,7 @@ Proof.
   exists registry_canonical. split; [now apply registry_bound|].
   unfold registry_run. rewrite Hidle. destruct present; simpl; [|reflexivity].
   destruct ((1 <=? tag) && (tag <=? 9)); simpl; [|reflexivity].
-  do 10 (destruct tag as [|tag]; try reflexivity; try (now apply invoke_frames)).
-  reflexivity.
+  do 10 (destruct tag as [|tag]; try reflexivity; try (now apply invoke_frames)); reflexivity.
 Qed.
 Theorem busy_refuses : forall A p (s : RegistrySource.state A) tag valid callback,
   RegistrySource.active s = true ->
@@ -210,7 +209,7 @@ Lemma scan_fold : forall (step : bool -> nat -> bool) foreign,
   forall bs s, scan header_canonical foreign (encode s) bs = Some (encode (fold step s bs)).
 Proof.
   intros step foreign H bs. induction bs as [|b bs IH]; intro s; [reflexivity|].
-  simpl. rewrite H. destruct (step s b) eqn:E; simpl; apply IH.
+  simpl. rewrite H. destruct (step s b) eqn:E; simpl; [apply (IH true)|apply (IH false)].
 Qed.
 Theorem header_source_fold : forall bytes step foreign bs,
   check_header bytes = true ->
@@ -252,3 +251,11 @@ Print Assumptions raw_alias_counterexample.
 Print Assumptions header_source_fold.
 Print Assumptions bounded_reads.
 Print Assumptions checked_state_bound.
+
+Theorem raw_alias_breaks_frame :
+  final_registry (registry_run registry_canonical true
+    (RegistrySource.State (Some 9) (Some 1) false) 1 true
+    (fun _ _ => (RegistrySource.State None (Some 1) true,7%Z))) <>
+  RegistrySource.State (Some 9) (Some 1) false.
+Proof. discriminate. Qed.
+Print Assumptions raw_alias_breaks_frame.
