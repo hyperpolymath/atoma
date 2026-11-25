@@ -31,6 +31,7 @@ jobs:
       - name: Guarded decoder and imported encoder source
         run: bash scripts/atoma-word-source-proof-gate.sh
       - name: Actual registry state-kernel source
+        if: success() || failure()
         run: bash scripts/atoma-registry-source-proof-gate.sh
       - uses: actions/upload-artifact@v7.0.2
         if: always()

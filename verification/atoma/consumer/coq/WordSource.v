@@ -108,7 +108,9 @@ Proof.
   intros bytes H b Hb. unfold encoder_check in H.
   apply andb_true_iff in H as [_ H]. rewrite forallb_forall in H.
   assert (Hn : (N.to_nat b < 256)%nat).
-  { apply N2Nat.inj_lt in Hb. exact Hb. }
+  { apply Nat.compare_lt_iff.
+    change (N.to_nat b ?= N.to_nat 256)%nat = Lt.
+    rewrite <- N2Nat.inj_compare. exact Hb. }
   assert (Hin : In (N.to_nat b) (seq 0 256)).
   { apply in_seq. split; [lia | exact Hn]. }
   specialize (H (N.to_nat b) Hin). unfold encoder_row in H.
