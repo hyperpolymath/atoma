@@ -30,11 +30,15 @@ jobs:
           sudo apt-get install -y --no-install-recommends coq=8.18.0+dfsg-1build2
       - name: Guarded decoder and imported encoder source
         run: bash scripts/atoma-word-source-proof-gate.sh
+      - name: Actual registry state-kernel source
+        run: bash scripts/atoma-registry-source-proof-gate.sh
       - uses: actions/upload-artifact@v7.0.2
         if: always()
         with:
           name: word-source-proof-evidence-${{ github.sha }}
-          path: build/scalar-proof-evidence/word-source/
+          path: |
+            build/scalar-proof-evidence/word-source/
+            build/scalar-proof-evidence/registry-source/
           if-no-files-found: error
 
   scalar:

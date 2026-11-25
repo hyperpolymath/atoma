@@ -59,7 +59,7 @@ Fixpoint decimal_acc (s : string) (acc : N) : option N :=
       then decimal_acc rest (10 * acc + N.of_nat (n - 48))%N else None
   end.
 Definition decimal (s : string) : option N :=
-  if (1 <=? String.length s)%nat && (String.length s <=? 20)%nat
+  if Nat.leb 1 (String.length s) && Nat.leb (String.length s) 20
   then decimal_acc s 0%N else None.
 
 Record program := Program { divisor : N; maximum : N }.
@@ -85,7 +85,7 @@ Definition parse_tokens (ts : list string) : option program :=
   | _ => None
   end.
 Definition parse (bytes : list nat) : option program :=
-  if forallb (fun c => (c <? 128)%nat) bytes then
+  if forallb (fun c => Nat.ltb c 128) bytes then
     match lex (List.length bytes) bytes with
     | Some ts => parse_tokens ts | None => None end
   else None.

@@ -49,6 +49,7 @@ sed 's/encodeWord/otherName/' "$out/bits8_word.zig" > renamed.zig
 reject encoder-export "$out/bits8_decode_word.zig" renamed.zig
 sed 's/bits8_word.zig/bits8_word .zig/' "$out/bits8_decode_word.zig" > import-space.zig
 reject literal-whitespace import-space.zig "$out/bits8_word.zig"
+cp "$out/bits8_word.zig" renamed.zig
 printf '\nconst extra = @import("unbound.zig");\n' >> renamed.zig
 reject trailing-import "$out/bits8_decode_word.zig" renamed.zig
 sha256sum "$out/"*.zig ./*.v > "$out/inputs.sha256"
