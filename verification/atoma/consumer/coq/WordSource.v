@@ -3,7 +3,7 @@
 (* Closed guarded-decoder source semantics. Original bytes and the complete
    imported encoder are inputs; an emitter-supplied AST/verdict is not used.
    Machine/compiler and pointer-carrier correspondence are separate. *)
-From Coq Require Import List String Ascii Bool NArith Lia.
+From Coq Require Import List String Ascii Bool NArith PeanoNat Nnat Lia.
 Require Import ScalarSource CanonicalWord.
 Import ListNotations.
 Open Scope string_scope.
