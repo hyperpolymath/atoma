@@ -7,6 +7,7 @@ From Coq Require Import List String Ascii Bool NArith Lia.
 Require Import ScalarSource CanonicalWord.
 Import ListNotations.
 Open Scope string_scope.
+Open Scope nat_scope.
 
 Fixpoint strip_prefix (prefix xs : list nat) : option (list nat) :=
   match prefix, xs with

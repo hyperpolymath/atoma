@@ -13,6 +13,7 @@ cat <<'COQ'
 From Coq Require Import List NArith.
 Require Import WordSource.
 Import ListNotations.
+Open Scope nat_scope.
 COQ
 printf 'Definition decoder_bytes : list nat := '
 bytes "$1"
