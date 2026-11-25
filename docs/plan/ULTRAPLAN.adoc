@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: CC-BY-SA-4.0
 // SPDX-FileCopyrightText: 2026 Jonathan D.A. Jewell <j.d.a.jewell@open.ac.uk>
 = Atoma — soundness-first plan to v1
-:revdate: 2026-11-24
+:revdate: 2026-11-25
 :toc:
 
 Atoma is experimental. The release objective is a useful verifier for an
@@ -57,8 +57,11 @@ Whole-boundary receipts remain INCOMPLETE.
 This milestone precedes v1; it does not discharge memory, state, compiler
 refinement or the full checker chain. #28 merged on 2026-11-24 after its required
 soundness and CI checks passed; consumer source checking and its evidence are
-in #30. Next, prove the full-word decoder relation and the registry state/effect
-contract before extending source interpretation to calls, memory or ownership.
+in #30. The full-word decoder, registry state kernel and conditional wrapper
+profiles followed in #31–#33. The raw-alias counterexample is now explicit.
+The next bounded extension, #34, connects heap/borrow obligations to Proven's
+public entry and UAA's retained registration/destruction effects. Its source
+and native receipts remain subject to exact-head qualification.
 
 All applicable rows must pass on the release commit. They are conjunctive
 gates, not a readiness percentage.
@@ -110,8 +113,9 @@ Re-estimate after R1, with compiler/formal-methods expertise available.
 
 R1 progress: the source-bound u8 function now has a generated Coq model
 theorem and a real ECHIDNA/coqchk path with adversarial replay controls.
-This closes a narrow replay experiment, not R1: the alias counterexample,
-typed-subset expansion and source-to-model refinement argument remain open.
+The alias counterexample and conditional wrapper framing are now checked by
+the #33 campaign. R1 is still partial: typed-subset expansion and the
+source-to-model refinement argument remain open.
 Do those before expanding features or shortening the v1 estimate. See
 `docs/audit/2026-11-07-source-replay.adoc`.
 

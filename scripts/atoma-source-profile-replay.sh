@@ -22,16 +22,28 @@ case "$profile" in
     libraries=(ScalarSource RegistrySource)
     reports=1
     ;;
-  registry-wrapper|header-wrapper)
+  registry-wrapper|header-wrapper|registry-lifetime)
     import_path=$(realpath "$3")
     cp "$import_path" "$out/dependency.zig"
     libraries=(ScalarSource RegistrySource WrapperSource)
     reports=1
-    if [[ $profile == registry-wrapper ]]; then
+    if [[ $profile == registry-wrapper || $profile == registry-lifetime ]]; then
       protocol_path=$(dirname "$source_path")/protocol_tag.zig
       cp "$protocol_path" "$out/protocol_tag.zig"
       reports=3
     fi
+    if [[ $profile == registry-lifetime ]]; then
+      libraries+=(HeapOwnership RegistryLifetimeSource)
+      reports=6
+    fi
+    ;;
+  public-header)
+    import_path=$(realpath "$3")
+    cp "$import_path" "$out/dependency.zig"
+    backend_path=$(dirname "$source_path")/header_refc.zig
+    cp "$backend_path" "$out/backend.zig"
+    libraries=(ScalarSource RegistrySource WrapperSource HeapOwnership HeaderBoundaryContext HeaderBoundarySource)
+    reports=4
     ;;
   *) fail 'unsupported source profile' ;;
 esac
@@ -44,6 +56,8 @@ capsule() {
       registry) bash "$root/scripts/atoma-registry-capsule.sh" "$out/source.zig" ;;
       registry-wrapper) bash "$root/scripts/atoma-wrapper-capsule.sh" registry "$out/source.zig" "$out/dependency.zig" "$out/protocol_tag.zig" ;;
       header-wrapper) bash "$root/scripts/atoma-wrapper-capsule.sh" header "$out/source.zig" "$out/dependency.zig" - ;;
+      registry-lifetime) bash "$root/scripts/atoma-registry-lifetime-capsule.sh" "$out/source.zig" "$out/dependency.zig" "$out/protocol_tag.zig" ;;
+      public-header) bash "$root/scripts/atoma-public-header-capsule.sh" "$out/source.zig" "$out/dependency.zig" "$out/backend.zig" ;;
     esac
 }
 capsule > "$out/AtomaProof.v"
@@ -69,8 +83,9 @@ timeout -k 5 180 coqc -q Audit.v > assumptions.txt 2>&1
 if grep -q '^Axioms:' assumptions.txt; then fail 'audit reported axioms'; fi
 cmp -s source.zig "$source_path" || fail 'source changed during replay'
 if [[ $profile == decoder ]]; then cmp -s encoder.zig "$import_path" || fail 'import changed'; fi
-if [[ $profile == *-wrapper ]]; then cmp -s dependency.zig "$import_path" || fail 'wrapper dependency changed'; fi
-if [[ $profile == registry-wrapper ]]; then cmp -s protocol_tag.zig "$protocol_path" || fail 'protocol dependency changed'; fi
+if [[ $profile == *-wrapper || $profile == registry-lifetime || $profile == public-header ]]; then cmp -s dependency.zig "$import_path" || fail 'entry dependency changed'; fi
+if [[ $profile == registry-wrapper || $profile == registry-lifetime ]]; then cmp -s protocol_tag.zig "$protocol_path" || fail 'protocol dependency changed'; fi
+if [[ $profile == public-header ]]; then cmp -s backend.zig "$backend_path" || fail 'header backend changed'; fi
 for library in "${libraries[@]}"; do
     cmp -s "$library.v" "$root/verification/atoma/consumer/coq/$library.v" || fail 'checker changed'
 done

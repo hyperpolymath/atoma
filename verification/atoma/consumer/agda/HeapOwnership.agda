@@ -132,6 +132,7 @@ drop : {A : Set} → Nat → List A → List A
 drop zero xs = xs
 drop (suc n) [] = []
 drop (suc n) (_ ∷ xs) = drop n xs
+infix 4 _≤_
 data _≤_ : Nat → Nat → Set where
   z≤n : ∀ {n} → zero ≤ n
   s≤s : ∀ {m n} → m ≤ n → suc m ≤ suc n
