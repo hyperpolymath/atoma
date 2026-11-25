@@ -92,6 +92,8 @@ jobs:
         run: bash scripts/atoma-registry-proof-gate.sh
       - name: Borrowed wrapper theory and cleanup control
         run: bash scripts/atoma-wrapper-proof-gate.sh
+      - name: Heap permissions and bounded-span theory
+        run: bash scripts/atoma-heap-proof-gate.sh
       - name: Preserve canonical repository map for review
         run: |
           bash scripts/gen-repo-map.sh .
