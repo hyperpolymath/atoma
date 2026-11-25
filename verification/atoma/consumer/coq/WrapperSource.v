@@ -179,8 +179,8 @@ Theorem registry_normal_frame : forall bytes A present (s : RegistrySource.state
 Proof.
   intros bytes A present s tag valid callback Hsource Hidle Hframe.
   exists registry_canonical. split; [now apply registry_bound|].
-  unfold registry_run. rewrite Hidle. destruct present; simpl; [|reflexivity].
-  destruct ((1 <=? tag) && (tag <=? 9)); simpl; [|reflexivity].
+  unfold registry_run. rewrite Hidle. destruct present; [|reflexivity].
+  destruct ((1 <=? tag) && (tag <=? 9)); cbn [negb]; [|reflexivity].
   do 10 (destruct tag as [|tag]; try reflexivity; try (now apply invoke_frames)); reflexivity.
 Qed.
 Theorem busy_refuses : forall A p (s : RegistrySource.state A) tag valid callback,

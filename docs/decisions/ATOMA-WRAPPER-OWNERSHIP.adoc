@@ -51,7 +51,10 @@ That counterexample must remain visible; it prevents unconditional safety claims
 
 Idris2 owns both engineering contracts. UAA's linear Lease checks use of an
 already-acquired logical owner: acquisition, unforgeability and machine aliases
-are not proved by its constructors. A duplicated owner must fail type checking.
+are not proved by its constructors. Constructors are hidden, the resource
+payload is linear, and release requires a consuming finalizer. Neither direct
+duplication nor destruct-and-reconstruct duplication may type check. Wrapping
+an already-copyable value does not establish exclusive machine ownership.
 Proven proves checked scanning against its actual ByteKernel fold. Native tests
 exercise real Zig wrappers and exported ABI; no FFI/API is implemented in C.
 
