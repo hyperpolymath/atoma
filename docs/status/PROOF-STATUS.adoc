@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: CC-BY-SA-4.0
 // Copyright (c) Jonathan D.A. Jewell <j.d.a.jewell@open.ac.uk>
 = Atoma proof status
-:revdate: 2026-11-07
+:revdate: 2026-11-25
 
 Evidence remains *INCOMPLETE / Warrant*. Counts below describe scoped checks;
 they are not a fraction of Zig soundness or a release-readiness percentage.
@@ -83,3 +83,18 @@ The manifests in `verification/proofs/` declare exact checked/quarantined scope.
 
 See link:../plan/ULTRAPLAN.adoc[the stable task register] and
 link:../audit/2026-11-07-soundness-sprint.adoc[the repair evidence].
+
+== Source-binding milestone (under qualification)
+
+The decoder/import and registry-kernel source capsules passed their independent
+Coq interpretation, assumption audits, coqchk and rejecting source mutations in
+https://github.com/hyperpolymath/atoma/actions/runs/45527831101[run 45527831101]
+at head 1cc383c1ff2e747cb96d13a49638326ee75823f7. Registry compatible Agda,
+Lean and full Cubical witnesses passed in the same run. Combined consumer and
+ECHIDNA qualification was still pending when this entry was prepared.
+
+The existing proof-policy claims table and grades above are not promoted by
+these observations. Cross-kernel statement correspondence is BRIDGE-PENDING.
+See link:../decisions/ATOMA-BOUNDARY-SOURCE.adoc[the source-profile decision]
+for the exact interpretation, compiler, wrapper and ownership boundaries.
+

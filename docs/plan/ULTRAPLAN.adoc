@@ -205,3 +205,23 @@ before each step and does the mechanical edits. The advisor reviews the close
 of each stage and each change to a status word. The person-week ranges in the
 sequence table above stay the planning basis; the sizes here only order the
 agent work.
+
+== Decoder and registry source binding (2026-11-25)
+
+R1/R2 now have an implementation under remote validation for two further source
+profiles: Proven's guarded decoder plus imported encoder, and UAA's generic
+registry state kernel. Both are called by the actual pure Zig FFI wrappers;
+Idris2 owns their ABI contracts. See
+link:../decisions/ATOMA-BOUNDARY-SOURCE.adoc[scope, acceptance and open obligations].
+
+The new gates combine original-byte Coq interpretation, fresh native Idris/Zig
+comparisons and ECHIDNA/coqchk replay. The registry theory adds compatible Agda,
+axiom-free Lean witnesses and full Cubical paths. They do not establish whole
+wrapper effects, compiler correctness, pointer leases or cross-kernel transport.
+Their acceptance remains pending until exact-head consumer and Atoma runs pass.
+
+The next R1 exit item remains a concrete alias counterexample and a checked
+ownership premise for callback/defer/finish. T1–T4 and S1–S6 stay open. The v1
+scope and person-week envelope above are unchanged; these deliberately narrow
+source profiles are evidence for the experimental MVP, not a shortcut to v1.
+

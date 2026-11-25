@@ -16,6 +16,32 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  word_source:
+    name: Universal source interpretation
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - name: Provision independent Coq checker
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends coq=8.18.0+dfsg-1build2
+      - name: Guarded decoder and imported encoder source
+        run: bash scripts/atoma-word-source-proof-gate.sh
+      - name: Actual registry state-kernel source
+        if: success() || failure()
+        run: bash scripts/atoma-registry-source-proof-gate.sh
+      - uses: actions/upload-artifact@v7.0.2
+        if: always()
+        with:
+          name: word-source-proof-evidence-${{ github.sha }}
+          path: |
+            build/scalar-proof-evidence/word-source/
+            build/scalar-proof-evidence/registry-source/
+          if-no-files-found: error
+
   scalar:
     name: Scalar source proof gate
     runs-on: ubuntu-24.04
@@ -41,6 +67,8 @@ jobs:
         run: bash scripts/atoma-scalar-proof-gate.sh
       - name: Universal decoder theory (Agda, Lean, Coq and Cubical)
         run: bash scripts/atoma-word-proof-gate.sh
+      - name: Generic registry theory (compatible Agda, Lean and full Cubical)
+        run: bash scripts/atoma-registry-proof-gate.sh
       - name: Preserve canonical repository map for review
         run: |
           bash scripts/gen-repo-map.sh .
@@ -54,7 +82,7 @@ jobs:
 
   soundness:
     name: Atoma soundness gate
-    needs: [scalar]
+    needs: [scalar, word_source]
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
