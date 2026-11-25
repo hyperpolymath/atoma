@@ -35,6 +35,15 @@ the actual Proven word encoder and UAA protocol classifier to fresh Idris2
 contracts and independently interprets their source bytes in Coq. It leaves
 pointer/ownership and stateful foreign-boundary obligations explicit.
 
+The scalar MVP merged in PR #30 at `c59fe78fceeaf284c0beab96300c9ad392150598`.
+The next theory slice has checked universal decoder models in strict safe
+Agda, full safe Cubical, Lean and Coq/coqchk; see
+link:../theory/UNIVERSAL-DECODER.adoc[the statements, hosted evidence and limits].
+These independent models do not yet establish cross-model correspondence or
+prove the real decoder source. UAA PR #22 separately checks its total Idris2
+state contract and existing native campaign, with ownership/lifetime assumptions
+explicit. Its source refinement and Agda/Lean/Coq state witnesses remain open.
+
 * Proven: prove decoder acceptance iff the entire 64-bit word is a canonical
   byte encoding, then bind the actual raw-word decoder source and its encoder
   dependency. Immediate tagged words are not allocated objects; pointer-carrier

@@ -1,0 +1,54 @@
+// SPDX-License-Identifier: CC-BY-SA-4.0
+// Copyright (c) 2026 Jonathan D.A. Jewell <j.d.a.jewell@open.ac.uk>
+= Universal decoder proof development
+
+The target is acceptance exactly when a word is the canonical RefC Bits8
+encoding of a byte. Testing all encoder inputs does not establish this:
+the decoder must refuse every noncanonical 64-bit word.
+
+== Theory stage
+
+`CanonicalWord.agda` models every 64-bit pattern as 24 high bits, eight payload
+bits, 31 padding bits and a tag. Its decoder requires zero high/padding bits
+and a set tag. It proves soundness, completeness, encoder injectivity and
+universal noncanonical rejection without enumerating words. The compatible
+safe check runs first, followed by a full safe Cubical import check.
+
+Lean and Coq independently prove the arithmetic statement over all natural
+words: `decode w = Some b` iff `b < 256` and `w = b * 4294967296 + 1`.
+Thus the arithmetic statement also covers all uint64 inputs. Coq's proof
+assumptions are required to be closed; Lean's complete kernel-axiom report is
+retained. The gate accepts only the four exact reports for the pinned Lean:
+`propext` and `Quot.sound`, plus `Classical.choice` for the range lemma only.
+Custom axioms, `sorryAx`, missing/duplicate reports and unexpected output fail.
+A deliberately compiled custom-axiom mutant must be rejected. Standard Lean
+kernel axioms are not hidden or described as an axiom-free proof.
+
+These are independently written models. Machine-checked correspondence
+between Agda's bit fields and the arithmetic statements remains open; they
+are not yet an exchanged cross-kernel proof witness or a derived proof grade.
+
+== Source and consumer stage
+
+Pending: extract Proven's raw-word decoder into a pure Zig helper, retain the
+Idris2 ABI as authority, and bind the helper's source bytes to a closed
+interpreter with guards and checked narrowing. Require rejection mutants for
+missing bounds, missing canonical equality, altered shift/tag and unbound
+imports. Retain native SDK/layout and actual-wrapper checks alongside proof.
+
+Pointers here carry immediate tagged words, not allocations. Pointer
+provenance, borrowed buffers, foreign calling conventions and compiler
+refinement remain separate obligations. UAA's following state milestone must
+frame refusal paths and endpoint updates, preserve callback/context identity,
+and restore busy state on normal callback return under explicit ownership and
+serialization assumptions. No termination or arbitrary foreign-memory safety
+claim follows from these decoder theorems.
+
+Hosted run
+https://github.com/hyperpolymath/atoma/actions/runs/45509711011[45509711011]
+checked proof commit `5a77c27c9db405bd68769fe8aa1007eefa453723` successfully:
+strict safe Agda with `--cubical-compatible --double-check`, the full safe
+Cubical import, Lean and Coq including `coqchk`. Coq's four theorem reports
+are closed under the global context. Lean reports `propext` and `Quot.sound`;
+the range lemma additionally reports `Classical.choice`. No `sorryAx` occurs.
+All compiler and prover execution remains in remote CI during the local-work hold.
