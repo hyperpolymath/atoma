@@ -22,6 +22,7 @@ for profile in header registry; do
   git -C "$checkout" fetch -q --depth 1 origin "$revision"
   git -C "$checkout" checkout -q --detach FETCH_HEAD
   [[ $(git -C "$checkout" rev-parse HEAD) == "$revision" ]]
+  git -C "$checkout" diff --exit-code "$revision" --
   mkdir "$out/$profile"
   echo "$revision" > "$out/$profile/revision.txt"
   if [[ $profile == header ]]; then
@@ -35,6 +36,8 @@ for profile in header registry; do
     EVIDENCE_DIR="$out/$profile/native-controls" bash "$checkout/scripts/check-registry-ownership-controls.sh"
     [[ $(cat "$out/$profile/native-controls/result.txt") == PASS ]]
   fi
+  git -C "$checkout" diff --exit-code "$revision" -- > "$out/$profile/consumer-recheck.txt"
   bash "$root/scripts/atoma-source-profile-replay.sh" "$profile-wrapper" "$checkout/$source" "$checkout/$dependency" "$out/$profile/replay"
+  git -C "$checkout" diff --exit-code "$revision" -- > "$out/$profile/post-replay-recheck.txt"
 done
 echo 'WRAPPER CONSUMERS PASS: fresh native qualification and conditional original-source replay; ownership premises remain'
