@@ -1,3 +1,4 @@
+-- SPDX-License-Identifier: MPL-2.0
 {-# OPTIONS --safe --without-K --cubical-compatible #-}
 module WrapperEffects where
 open import Agda.Builtin.Bool

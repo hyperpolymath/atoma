@@ -1,3 +1,4 @@
+-- SPDX-License-Identifier: MPL-2.0
 {-# OPTIONS --safe --cubical #-}
 module WrapperEffectsCubical where
 import WrapperEffects as W

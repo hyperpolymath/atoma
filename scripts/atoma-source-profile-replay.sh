@@ -22,6 +22,17 @@ case "$profile" in
     libraries=(ScalarSource RegistrySource)
     reports=1
     ;;
+  registry-wrapper|header-wrapper)
+    import_path=$(realpath "$3")
+    cp "$import_path" "$out/dependency.zig"
+    libraries=(ScalarSource RegistrySource WrapperSource)
+    reports=1
+    if [[ $profile == registry-wrapper ]]; then
+      protocol_path=$(dirname "$source_path")/protocol_tag.zig
+      cp "$protocol_path" "$out/protocol_tag.zig"
+      reports=3
+    fi
+    ;;
   *) fail 'unsupported source profile' ;;
 esac
 for library in "${libraries[@]}"; do
@@ -31,6 +42,8 @@ capsule() {
     case "$profile" in
       decoder) bash "$root/scripts/atoma-word-capsule.sh" "$out/source.zig" "$out/encoder.zig" ;;
       registry) bash "$root/scripts/atoma-registry-capsule.sh" "$out/source.zig" ;;
+      registry-wrapper) bash "$root/scripts/atoma-wrapper-capsule.sh" registry "$out/source.zig" "$out/dependency.zig" "$out/protocol_tag.zig" ;;
+      header-wrapper) bash "$root/scripts/atoma-wrapper-capsule.sh" header "$out/source.zig" "$out/dependency.zig" - ;;
     esac
 }
 capsule > "$out/AtomaProof.v"
@@ -56,6 +69,8 @@ timeout -k 5 180 coqc -q Audit.v > assumptions.txt 2>&1
 ! grep -q '^Axioms:' assumptions.txt
 cmp -s source.zig "$source_path" || fail 'source changed during replay'
 if [[ $profile == decoder ]]; then cmp -s encoder.zig "$import_path" || fail 'import changed'; fi
+if [[ $profile == *-wrapper ]]; then cmp -s dependency.zig "$import_path" || fail 'wrapper dependency changed'; fi
+if [[ $profile == registry-wrapper ]]; then cmp -s protocol_tag.zig "$protocol_path" || fail 'protocol dependency changed'; fi
 for library in "${libraries[@]}"; do
     cmp -s "$library.v" "$root/verification/atoma/consumer/coq/$library.v" || fail 'checker changed'
 done
@@ -65,6 +80,6 @@ jq -cnS --arg profile "$profile" \
   '{schema:"atoma.source.profile/1",status:"INCOMPLETE",profile:$profile,
     checked:"original source interpretation; independent kernel replay",assumptions:[],
     open:["Zig parser/compiler refinement","Idris primitive/compiler correspondence",
-      "cross-kernel witness transport","pointer validity and exclusive ownership","whole-wrapper effects"]}' > receipt.json
+      "cross-kernel witness transport","pointer validity and exclusive ownership",
+      "foreign callback and RefC contracts","whole-wrapper effects outside admitted profile"]}' > receipt.json
 echo "SOURCE-CHECKED $profile: interpreted source; compiler and foreign boundary remain explicit"
-

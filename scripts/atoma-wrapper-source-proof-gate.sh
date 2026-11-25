@@ -19,6 +19,7 @@ fetch proven "$proven" ffi/zig/src/header_refc.zig "$work/header.zig"
 fetch proven "$proven" ffi/zig/src/refc/bits8.zig "$work/bits8.zig"
 fetch unified-api-adapter "$uaa" src/interface/ffi/src/registry.zig "$work/registry.zig"
 fetch unified-api-adapter "$uaa" src/interface/ffi/src/registry_state.zig "$work/registry_state.zig"
+fetch unified-api-adapter "$uaa" src/interface/ffi/src/protocol_tag.zig "$work/protocol_tag.zig"
 cd "$work"
 for library in ScalarSource RegistrySource WrapperSource; do
   coqc -q "$library.v" > "$out/$library.txt" 2>&1
@@ -26,14 +27,14 @@ done
 [[ $(grep -c '^Closed under the global context$' "$out/WrapperSource.txt") == 6 ]]
 for profile in registry header; do
   dependency=registry_state.zig; [[ $profile != header ]] || dependency=bits8.zig
-  bash "$root/scripts/atoma-wrapper-capsule.sh" "$profile" "$profile.zig" "$dependency" > AtomaProof.v
+  bash "$root/scripts/atoma-wrapper-capsule.sh" "$profile" "$profile.zig" "$dependency" protocol_tag.zig > AtomaProof.v
   coqc -q AtomaProof.v > "$out/$profile.txt" 2>&1
   coqchk -silent -Q . '' WrapperSource AtomaProof > "$out/$profile-coqchk.txt" 2>&1
   cp AtomaProof.v "$out/$profile-capsule.v"
 done
 reject() {
   local name=$1 profile=$2 dependency=$3
-  bash "$root/scripts/atoma-wrapper-capsule.sh" "$profile" mutant.zig "$dependency" > Bad.v
+  bash "$root/scripts/atoma-wrapper-capsule.sh" "$profile" mutant.zig "$dependency" protocol_tag.zig > Bad.v
   if coqc -q Bad.v > "$out/reject-$name.txt" 2>&1; then echo "FAIL $name accepted" >&2; exit 1; fi
   grep -q 'Unable to unify' "$out/reject-$name.txt"
 }

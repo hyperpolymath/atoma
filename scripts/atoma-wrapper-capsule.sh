@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: MPL-2.0
 set -euo pipefail
-[[ $# == 3 && -f $2 && -f $3 ]]
+[[ $# == 4 && -f $2 && -f $3 ]]
 profile=$1
 [[ $profile == registry || $profile == header ]]
 for source in "$2" "$3"; do [[ $(wc -c < "$source") -le 65536 ]]; done
@@ -18,10 +18,14 @@ bytes() {
 bytes wrapper_bytes "$2"
 bytes dependency_bytes "$3"
 if [[ $profile == registry ]]; then
+[[ -f $4 && $(wc -c < "$4") -le 65536 ]]
+bytes protocol_bytes "$4"
 cat <<'COQ'
 Lemma source_accepted : WrapperSource.check_registry wrapper_bytes = true.
 Proof. vm_compute. reflexivity. Qed.
 Lemma dependency_accepted : RegistrySource.check dependency_bytes = true.
+Proof. vm_compute. reflexivity. Qed.
+Lemma protocol_accepted : ScalarSource.parse protocol_bytes = Some (ScalarSource.inclusive_range 1 9).
 Proof. vm_compute. reflexivity. Qed.
 Theorem source_checked : forall A present (s : RegistrySource.state A) tag valid callback,
   RegistrySource.active s = false -> WrapperSource.callback_frames callback ->
@@ -30,6 +34,7 @@ Theorem source_checked : forall A present (s : RegistrySource.state A) tag valid
 Proof. intros. eapply WrapperSource.registry_normal_frame; eauto using source_accepted. Qed.
 Print Assumptions source_checked.
 Print Assumptions dependency_accepted.
+Print Assumptions protocol_accepted.
 COQ
 else
 # The pointer carrier / RefC runtime remain an explicit call contract. Preserve

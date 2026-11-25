@@ -33,9 +33,6 @@ jobs:
       - name: Actual registry state-kernel source
         if: success() || failure()
         run: bash scripts/atoma-registry-source-proof-gate.sh
-      - name: Actual wrapper source and conditional effects
-        if: success() || failure()
-        run: bash scripts/atoma-wrapper-source-proof-gate.sh
       - uses: actions/upload-artifact@v7.0.2
         if: always()
         with:
@@ -43,7 +40,27 @@ jobs:
           path: |
             build/scalar-proof-evidence/word-source/
             build/scalar-proof-evidence/registry-source/
-            build/scalar-proof-evidence/wrapper-source/
+          if-no-files-found: error
+
+  wrapper_source:
+    name: Wrapper source interpretation
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - name: Provision independent Coq checker
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends coq=8.18.0+dfsg-1build2
+      - name: Actual wrapper source and conditional effects
+        run: bash scripts/atoma-wrapper-source-proof-gate.sh
+      - uses: actions/upload-artifact@v7.0.2
+        if: always()
+        with:
+          name: wrapper-source-proof-evidence-${{ github.sha }}
+          path: build/scalar-proof-evidence/wrapper-source/
           if-no-files-found: error
 
   scalar:
@@ -88,7 +105,7 @@ jobs:
 
   soundness:
     name: Atoma soundness gate
-    needs: [scalar, word_source]
+    needs: [scalar, word_source, wrapper_source]
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
