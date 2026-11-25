@@ -66,7 +66,7 @@ capsule > Audit.v
 cmp -s AtomaProof.v Audit.v || fail 'capsule differs from independent regeneration'
 timeout -k 5 180 coqc -q Audit.v > assumptions.txt 2>&1
 [[ $(grep -c '^Closed under the global context$' assumptions.txt) == "$reports" ]] || fail 'unexpected assumptions'
-! grep -q '^Axioms:' assumptions.txt
+if grep -q '^Axioms:' assumptions.txt; then fail 'audit reported axioms'; fi
 cmp -s source.zig "$source_path" || fail 'source changed during replay'
 if [[ $profile == decoder ]]; then cmp -s encoder.zig "$import_path" || fail 'import changed'; fi
 if [[ $profile == *-wrapper ]]; then cmp -s dependency.zig "$import_path" || fail 'wrapper dependency changed'; fi

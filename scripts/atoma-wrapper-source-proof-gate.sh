@@ -24,7 +24,7 @@ cd "$work"
 for library in ScalarSource RegistrySource WrapperSource; do
   coqc -q "$library.v" > "$out/$library.txt" 2>&1
 done
-[[ $(grep -c '^Closed under the global context$' "$out/WrapperSource.txt") == 6 ]]
+[[ $(grep -c '^Closed under the global context$' "$out/WrapperSource.txt") == 7 ]]
 for profile in registry header; do
   dependency=registry_state.zig; [[ $profile != header ]] || dependency=bits8.zig
   bash "$root/scripts/atoma-wrapper-capsule.sh" "$profile" "$profile.zig" "$dependency" protocol_tag.zig > AtomaProof.v
@@ -45,7 +45,7 @@ for mutation in cleanup context order span; do
     order) sed 's/registry\.\* = reply.next;/registry.* = state.finish(Endpoint, reply.next);/' registry.zig ;;
     span) sed '/if (bytes == null and len != 0) return 4;/d' registry.zig ;;
   esac > mutant.zig
-  ! cmp -s registry.zig mutant.zig
+  if cmp -s registry.zig mutant.zig; then echo 'FAIL unchanged registry mutant' >&2; exit 1; fi
   reject "$mutation" registry registry_state.zig
 done
 for mutation in initial bound final import; do
@@ -55,7 +55,7 @@ for mutation in initial bound final import; do
     final) sed 's/return state == 1/return state == 0/' header.zig ;;
     import) sed 's@refc/bits8.zig@refc/ bits8.zig@' header.zig ;;
   esac > mutant.zig
-  ! cmp -s header.zig mutant.zig
+  if cmp -s header.zig mutant.zig; then echo 'FAIL unchanged header mutant' >&2; exit 1; fi
   reject "$mutation" header bits8.zig
 done
 sha256sum ./*.v ./*.zig > "$out/inputs.sha256"

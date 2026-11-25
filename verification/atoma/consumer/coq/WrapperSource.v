@@ -26,7 +26,7 @@ Fixpoint lex (fuel : nat) (xs : list nat) : option (list string) :=
    | _ =>
      let token := if Nat.eqb c 34 then
        match literal (List.length rest) rest with
-       | Some (s,tail) => Some ("quoted:" ++ s,tail) | None => None end
+       | Some (s,tail) => Some (String.append "quoted:" s,tail) | None => None end
        else if ScalarSource.wordchar c then Some (ScalarSource.take_word xs)
        else match xs with
        | 61::61::tail => Some ("==",tail)
@@ -116,7 +116,7 @@ Definition observation A := (Z * RegistrySource.state A * option A)%type.
 Definition outcome {A} (code : nat) (s : RegistrySource.state A) : observation A :=
   (Z.of_nat code,s,None).
 Definition invoke {A} (p : registry_program) (s : RegistrySource.state A)
-  (slot : RegistrySource.slot) (span_valid : bool)
+  (slot : RegistrySource.slot) (span_shape_ok : bool)
   (callback : A -> RegistrySource.state A -> RegistrySource.state A * Z) : observation A :=
   let reply := RegistrySource.begin RegistrySource.canonical s slot in
   if negb (Nat.eqb (RegistrySource.status reply) 0) then outcome (RegistrySource.status reply) s else
@@ -124,20 +124,20 @@ Definition invoke {A} (p : registry_program) (s : RegistrySource.state A)
   | None => outcome (selected_code p) s
   | Some endpoint =>
     let borrowed := RegistrySource.next reply in
-    if span_valid then
+    if span_shape_ok then
       let '(after,code) := callback endpoint borrowed in
       (RegistrySource.sanitize RegistrySource.canonical code,
        RegistrySource.finish RegistrySource.canonical after,Some endpoint)
     else outcome (span_code p) (RegistrySource.finish RegistrySource.canonical borrowed)
   end.
 Definition registry_run {A} (p : registry_program) (present : bool)
-  (s : RegistrySource.state A) (tag : nat) (span_valid : bool) callback : observation A :=
+  (s : RegistrySource.state A) (tag : nat) (span_shape_ok : bool) callback : observation A :=
   if negb present then outcome (null_code p) s else
   if RegistrySource.active s then outcome (busy_code p) s else
   if negb ((1 <=? tag) && (tag <=? 9)) then outcome (tag_code p) s else
   match tag with
-  | 1 => invoke p s RegistrySource.MCP span_valid callback
-  | 9 => invoke p s RegistrySource.REST span_valid callback
+  | 1 => invoke p s RegistrySource.MCP span_shape_ok callback
+  | 9 => invoke p s RegistrySource.REST span_shape_ok callback
   | _ => outcome (unsupported_code p) s end.
 Definition final_registry {A} (out : observation A) := snd (fst out).
 Definition callback_frames {A} (callback : A -> RegistrySource.state A -> RegistrySource.state A * Z) := forall (e : A) s,
@@ -236,9 +236,19 @@ Proof.
  destruct (step s b) as [next|]; [destruct (next <=? maximum_state p)|]; simpl; try lia.
  specialize (IH next). lia.
 Qed.
+Theorem checked_state_bound : forall p step bs s out,
+  s <= maximum_state p -> scan p step s bs = Some out -> out <= maximum_state p.
+Proof.
+  intros p step bs. induction bs as [|b bs IH]; intros s out Hbound Hrun.
+  - simpl in Hrun. inversion Hrun. subst. exact Hbound.
+  - simpl in Hrun. destruct (step s b) as [next|] eqn:E; [|discriminate].
+    destruct (next <=? maximum_state p) eqn:Hnext; [|discriminate].
+    apply Nat.leb_le in Hnext. now apply (IH next out).
+Qed.
 Print Assumptions registry_normal_frame.
 Print Assumptions busy_refuses.
 Print Assumptions no_callback_for_invalid_span.
 Print Assumptions raw_alias_counterexample.
 Print Assumptions header_source_fold.
 Print Assumptions bounded_reads.
+Print Assumptions checked_state_bound.
