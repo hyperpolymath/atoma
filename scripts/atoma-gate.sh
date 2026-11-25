@@ -85,5 +85,5 @@ find tools/atoma/src examples/atoma/frame-v1/src examples/atoma/frame-v1/abi \
 sha256sum tools/atoma/build.zig scripts/atoma-*.sh examples/atoma/frame-v1/verify.sh \
     verification/proofs/{agda,idris2}/MANIFEST .github/workflows/atoma.yml >> "$evidence/inputs.sha256"
 cp examples/atoma/frame-v1/witness/phase0.receipt.json "$evidence/"
-echo 'ATOMA GATE PASS — INCOMPLETE (Warrant); finite-model replay checked, program refinement unproved'
+echo 'ATOMA GATE PASS — INCOMPLETE (Warrant); closed source profiles replayed; compiler and foreign-boundary refinement unproved'
 

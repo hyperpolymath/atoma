@@ -99,3 +99,30 @@ Run small experiments, not four simultaneous universal-verifier builds.
   each verifier owns its language boundary, Atoma owns the admitted Zig seam.
 
 No sibling files or schedules are changed by this Atoma sprint.
+
+== Lessons from the decoder and registry source profiles (2026-11-25)
+
+The first reusable result is a trust-boundary pattern: send original source
+bytes to a separate closed parser/interpreter, bind every admitted import,
+and audit the checked theorem independently of the emitter. Proven's guarded
+decoder needed full import binding, distinction between refusal and trap, and
+a universal arithmetic argument. UAA needed parameterized endpoint identity,
+state frames, reentrancy and explicit normal-return premises. These are
+different semantic obligations even though both use the same replay machinery.
+
+Fresh Idris2 oracles and four-mode native runs found the practical contract
+surface without claiming compiler correctness. Wrong implementations must
+compile and then fail execution; parser refusals and compilation failures
+are useful controls but are not counted as native mutation kills.
+
+The portability boundary is also clearer: a generic state record can preserve
+callback/context values without proving ownership of their pointees. A busy
+flag is not a linear capability. Each sibling must state and discharge its
+own alias, lifetime, runtime and exceptional-control-flow obligations.
+
+Reusable now: source envelopes, import-closure checks, fresh oracle construction,
+capsule regeneration, unchanged-checker checks, exact assumption audits and
+mutation accounting. Not established: automatic Agda-to-Lean/Coq transport,
+equivalence of language semantics, compiler refinement or a measured speedup
+for any sibling. Carry the BRIDGE-PENDING state into any second-language spike.
+

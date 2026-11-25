@@ -1,0 +1,84 @@
+// SPDX-License-Identifier: CC-BY-SA-4.0
+= Decoder and registry source-binding milestone
+:revdate: 2026-11-25
+
+This milestone is experimental. A source interpretation theorem is not a theorem
+about all Zig programs, the compiler, the whole FFI wrapper or foreign memory.
+The boundary architecture remains Idris2 ABI contracts and pure Zig FFIs/APIs.
+
+== Two distinct source profiles
+
+The decoder profile consumes the complete original Proven decoder module and
+its complete imported encoder. The lexer preserves the exact quoted import
+literal; the parser checks names, types, statement order and end of file.
+It interprets unsigned division, the range refusal, checked narrowing, actual
+encoder evaluation and full-word equality. The theorem quantifies over all
+natural words, including every u64 input. Outer evaluation failure/trap and
+normal InvalidRefcResult are distinct; successful admission excludes traps.
+No finite native corpus is presented as the universal proof.
+
+The registry profile consumes UAA's actual generic pure state kernel.
+The parser checks record declarations, all function signatures and bodies,
+and absence of imports or trailing code. Field selectors, field updates,
+status codes and restoration flags become operands in its interpretation.
+It proves equivalence with an independently written contract denotation for
+arbitrary opaque endpoint values. Endpoint identity includes the callback/context
+pair as a value, not ownership or validity of the pointed-to objects.
+
+The actual UAA FFI calls this state kernel. The source theorem does not yet
+interpret allocation, dereference, defer, callback execution or destruction.
+The theorem about finish does not prove that every machine path invokes finish.
+Native wrapper tests supply additional execution evidence under the ownership
+premises below. An implementation digest binds identity; it does not close
+these semantic gaps.
+
+== Contract and checker authority
+
+The pinned consumer commits live in tests/consumer-word/. Both must be present.
+Atoma rebuilds total, warning-free, no-holes Idris2 oracles in fresh directories.
+Proven provides 1026 decoder witnesses, including canonical values, tag/low-bit
+corruption, high payloads, zero and the maximum word.
+UAA supplies 900 two-operation traces over two distinct endpoint identities,
+both slots, all initial occupancy/busy states, and 17 signed-status witnesses.
+The actual Zig kernels must agree in Debug, ReleaseSafe, ReleaseFast and
+ReleaseSmall. Compilable wrong implementations must disagree.
+
+Atoma independently compiles its Coq source checker, serializes original source
+bytes, dispatches the capsule through ECHIDNA, requires a structured verified
+result, runs coqchk and independently regenerates and compiles the audit capsule.
+Checker objects and input sources must remain unchanged across dispatch.
+Whole-boundary receipts remain INCOMPLETE.
+
+Agda develops the generic frame, endpoint-identity, reentrancy and restoration
+witnesses with --safe --without-K --cubical-compatible --double-check.
+Lean re-proves those statements without Mathlib; the gate requires six exact,
+unique no-axioms reports. Coq instantiates the operational source interpretation.
+Full Cubical checks path versions of the compatible Agda witnesses.
+These are re-proved legs, not transported proof objects. Statement
+correspondence is BRIDGE-PENDING; no PWG upgrade, external verified-checker
+qualification or Mathesis admission follows automatically.
+
+== Ownership and execution premises still owed
+
+* A live registry has one serialized owner; concurrent operations are outside scope.
+* Registered callback code and context, and a call's input slice, remain live.
+* Foreign callbacks cannot write the registry through raw aliases.
+* Callback return is normal; panic, longjmp, cancellation and nontermination
+  do not inherit a normal-return restoration theorem.
+* RefC target/layout checks are required; pointer/integer-carrier and compiler
+  correspondence remain unproved.
+
+== Acceptance and next work
+
+Acceptance requires green exact-head remote checks in Atoma and both consumers,
+native mutations killed for the intended reason, fresh receipts and a review of
+the admitted source grammar. Draft code and passing model proofs alone do not
+complete this milestone. Heavy local validation remains on hold.
+
+Next, interpret the wrappers' dereferences, begin/defer/finish sequencing and
+callback effect contract; show an alias counterexample before claiming an
+exclusive-ownership lift. Bind caller capabilities and lifetime transitions to
+Idris2 contracts. Then reconcile the Agda/Lean/Coq statements and integrate the
+estate's independent verified checkers. These are v1 prerequisites, not implied
+by source-profile admission.
+

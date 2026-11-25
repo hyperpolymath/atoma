@@ -44,7 +44,8 @@ timeout -k 5 180 echidna prove "$out/AtomaProof.v" --prover coq --timeout 150 --
 jq -e -s --arg goal "$out/AtomaProof.v" '
   length == 1 and (.[0] | .schema == "echidna.prove.result/1" and
   .status == "verified" and .prover == "Coq" and .goal == $goal and
-  .trust.axioms == [] and .trust.confidence == null)' echidna.json >/dev/null
+  .trust.axioms == [] and .trust.confidence == null)' echidna.json >/dev/null \
+  || fail 'ECHIDNA result was malformed, untrusted or not bound to this capsule'
 [[ -s AtomaProof.vo ]] || fail 'missing compiled proof'
 sha256sum -c before.sha256 > recheck.txt || fail 'backend changed independent checker or source'
 timeout -k 5 180 coqchk -silent -Q . '' "${libraries[@]}" AtomaProof > coqchk.txt 2>&1
