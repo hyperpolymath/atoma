@@ -14,7 +14,8 @@ It is not a general Zig parser or a compiler-refinement theorem.
 UAA's theorem covers `uaa_registry_call`: initial idle state, all normal exits,
 busy refusal, invalid-span callback refusal and preservation of endpoint
 identities under a callback-frame premise. The actual imported state kernel is
-checked independently; the protocol-tag source must parse as the 1..9 range.
+checked independently; the protocol-tag source must export `known` and parse as
+the 1..9 range. A renamed-export mutation must be rejected.
 The surrounding create/destroy/register/unregister declarations are closed by
 the grammar and exercised natively, but do not acquire ownership theorems merely
 because their tokens match. Allocator correctness remains assumed.

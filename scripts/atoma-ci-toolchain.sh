@@ -18,10 +18,11 @@ unzip -q z3.zip
 echo "$task/z3-4.13.3-x64-glibc-2.35/bin" >> "$GITHUB_PATH"
 git init Idris2
 git -C Idris2 remote add origin https://github.com/idris-lang/Idris2.git
-git -C Idris2 fetch --depth 1 origin 15a3e4e70843f7a34100f6470c04b791330788df
+git -C Idris2 fetch --depth 1 origin b6cbc25d5cd2ef2a250556266fd7b68dfc360f8b
 git -C Idris2 checkout --detach FETCH_HEAD
-[[ $(git -C Idris2 rev-parse HEAD) == 15a3e4e70843f7a34100f6470c04b791330788df ]]
+[[ $(git -C Idris2 rev-parse HEAD) == b6cbc25d5cd2ef2a250556266fd7b68dfc360f8b ]]
 make -C Idris2 bootstrap SCHEME=scheme PREFIX="$task/idris2" -j2
 make -C Idris2 install PREFIX="$task/idris2"
+[[ $("$task/idris2/bin/idris2" --version) == 'Idris 2, version 0.8.0-b6cbc25d5' ]]
 echo "$task/idris2/bin" >> "$GITHUB_PATH"
 dpkg-query -W agda-bin chezscheme libgmp-dev

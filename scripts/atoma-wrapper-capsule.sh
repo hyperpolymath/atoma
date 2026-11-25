@@ -6,9 +6,10 @@ profile=$1
 [[ $profile == registry || $profile == header ]]
 for source in "$2" "$3"; do [[ $(wc -c < "$source") -le 65536 ]]; done
 cat <<'COQ'
-From Coq Require Import List Bool ZArith.
+From Coq Require Import List Bool ZArith String.
 Require Import WrapperSource RegistrySource.
 Import ListNotations.
+Open Scope string_scope.
 Open Scope nat_scope.
 COQ
 bytes() {
@@ -25,8 +26,14 @@ Lemma source_accepted : WrapperSource.check_registry wrapper_bytes = true.
 Proof. vm_compute. reflexivity. Qed.
 Lemma dependency_accepted : RegistrySource.check dependency_bytes = true.
 Proof. vm_compute. reflexivity. Qed.
-Lemma protocol_accepted : ScalarSource.parse protocol_bytes = Some (ScalarSource.inclusive_range 1 9).
-Proof. vm_compute. reflexivity. Qed.
+Definition protocol_exports_known : bool :=
+  match ScalarSource.lex (List.length protocol_bytes) protocol_bytes with
+  | Some ("pub" :: "fn" :: "known" :: _) => true
+  | _ => false
+  end.
+Lemma protocol_accepted : protocol_exports_known = true /\
+  ScalarSource.parse protocol_bytes = Some (ScalarSource.inclusive_range 1 9).
+Proof. vm_compute. split; reflexivity. Qed.
 Theorem source_checked : forall A present (s : RegistrySource.state A) tag valid callback,
   RegistrySource.active s = false -> WrapperSource.callback_frames callback ->
   exists p, WrapperSource.parse_registry wrapper_bytes = Some p /\

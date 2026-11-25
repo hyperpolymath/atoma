@@ -58,6 +58,11 @@ for mutation in initial bound final import; do
   if cmp -s header.zig mutant.zig; then echo 'FAIL unchanged header mutant' >&2; exit 1; fi
   reject "$mutation" header bits8.zig
 done
+sed 's/pub fn known(/pub fn renamed(/' protocol_tag.zig > protocol-renamed.zig
+if cmp -s protocol_tag.zig protocol-renamed.zig; then echo 'FAIL unchanged protocol-name mutant' >&2; exit 1; fi
+bash "$root/scripts/atoma-wrapper-capsule.sh" registry registry.zig registry_state.zig protocol-renamed.zig > Bad.v
+if coqc -q Bad.v > "$out/reject-protocol-name.txt" 2>&1; then echo 'FAIL renamed protocol export accepted' >&2; exit 1; fi
+grep -q 'Unable to unify' "$out/reject-protocol-name.txt"
 sha256sum ./*.v ./*.zig > "$out/inputs.sha256"
 cp ./*.zig "$out/"
 echo 'WRAPPER SOURCE PASS: conditional frame and borrowed loop; machine pointer and foreign-call premises remain'

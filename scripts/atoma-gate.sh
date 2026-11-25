@@ -15,7 +15,7 @@ case $("$AGDA" --version) in
     'Agda version 2.6.3'|'Agda version 2.6.4.3') ;;
     *) echo 'FAIL unsupported Agda version'; exit 1 ;;
 esac
-[[ $("$IDRIS2" --version) == 'Idris 2, version 0.8.0'* ]] || { echo 'FAIL expected Idris2 0.8.0'; exit 1; }
+[[ $("$IDRIS2" --version) == 'Idris 2, version 0.8.0-b6cbc25d5' ]] || { echo 'FAIL expected Idris2 0.8.0-b6cbc25d5'; exit 1; }
 evidence="$root/build/atoma-evidence"
 mkdir -p "$evidence"
 {
