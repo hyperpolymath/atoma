@@ -235,8 +235,6 @@ Proof.
   - intros A s k e. destruct k; reflexivity.
   - intros A s k. destruct k; reflexivity.
   - intros A s k. destruct k; reflexivity.
-  - reflexivity.
-  - reflexivity.
 Qed.
 
 Definition other (k : slot) := match k with MCP => REST | REST => MCP end.

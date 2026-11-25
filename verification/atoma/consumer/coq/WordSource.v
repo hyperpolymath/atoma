@@ -109,7 +109,7 @@ Proof.
   apply andb_true_iff in H as [_ H]. rewrite forallb_forall in H.
   assert (Hn : (N.to_nat b < 256)%nat).
   { apply Nat.compare_lt_iff.
-    change (N.to_nat b ?= N.to_nat 256)%nat = Lt.
+    change ((N.to_nat b ?= N.to_nat 256)%nat = Lt).
     rewrite <- N2Nat.inj_compare. exact Hb. }
   assert (Hin : In (N.to_nat b) (seq 0 256)).
   { apply in_seq. split; [lia | exact Hn]. }
@@ -150,7 +150,7 @@ Proof.
   apply andb_true_iff in H as [Hd H]. apply andb_true_iff in H as [Hm He].
   cbn in Hd, Hm. apply N.eqb_eq in Hd. apply N.eqb_eq in Hm. subst d m.
   unfold evaluate, CanonicalWord.decode, CanonicalWord.payload. cbn [divisor maximum].
-  change (if (w / CanonicalWord.stride <=? 255)%N then
+  change ((if (w / CanonicalWord.stride <=? 255)%N then
     if (w / CanonicalWord.stride <? 256)%N then
       match ScalarSource.run encoder (N.to_nat (w / CanonicalWord.stride)) with
       | Some canonical => Some (if N.eqb w canonical then Some (w / CanonicalWord.stride)%N else None)
@@ -158,7 +158,7 @@ Proof.
     else None else Some None) =
     Some (if (w / CanonicalWord.stride <? 256)%N then
       if (w =? CanonicalWord.encode (w / CanonicalWord.stride))%N then Some (w / CanonicalWord.stride)%N else None
-      else None).
+      else None)).
   remember (w / CanonicalWord.stride)%N as b.
   destruct (b <? 256)%N eqn:Hb.
   - apply N.ltb_lt in Hb.

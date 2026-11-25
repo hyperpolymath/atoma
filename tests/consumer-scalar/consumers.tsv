@@ -1,3 +1,4 @@
 # repository commit helper contract-oracle
-proven 21346ae1c85b7773a4bc16df51cb1ec5977f6b65 ffi/zig/src/refc/bits8_word.zig verification/header/ScalarOracle.idr
-unified-api-adapter 730d0c775c9ce84edbe37854d49680cb3b3ed84d src/interface/ffi/src/protocol_tag.zig src/interface/ProtocolTagOracle.idr
+proven a38d22ba10d0e22a1bc83a69d7ed7eb547c1c239 ffi/zig/src/refc/bits8_word.zig verification/header/ScalarOracle.idr
+unified-api-adapter 759cffa2b631c47b949a7a2219b87d926a3bc7fb src/interface/ffi/src/protocol_tag.zig src/interface/ProtocolTagOracle.idr
+
