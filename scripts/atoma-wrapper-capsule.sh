@@ -43,7 +43,8 @@ cat <<'COQ'
 Lemma source_accepted : WrapperSource.check_header wrapper_bytes = true.
 Proof. vm_compute. reflexivity. Qed.
 Theorem source_checked : forall step foreign bs,
-  (forall s b, foreign (WrapperSource.encode s) b = Some (WrapperSource.encode (step s b))) ->
+  Forall (fun b => b < 256) bs ->
+  (forall s b, b < 256 -> foreign (WrapperSource.encode s) b = Some (WrapperSource.encode (step s b))) ->
   exists p, WrapperSource.parse_header wrapper_bytes = Some p /\
     WrapperSource.header_run p foreign bs = Some (WrapperSource.fold step false bs).
 Proof. intros. eapply WrapperSource.header_source_fold; eauto using source_accepted. Qed.

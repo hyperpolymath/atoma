@@ -46,14 +46,26 @@ Record registry_program := CallProgram {
  null_code : nat; busy_code : nat; tag_code : nat;
  unsupported_code : nat; selected_code : nat; span_code : nat }.
 Definition registry_canonical := CallProgram 4 6 2 11 11 4.
+(* Literal prefixes are data interpreted by strip, avoiding enormous nested
+   string-pattern decision trees. Each operand is parsed from the actual source. *)
+Fixpoint operands (chunks : list (list string)) (xs : list string) : option (list nat) :=
+ match chunks with
+ | [] => None
+ | [last] => if RegistrySource.same last xs then Some [] else None
+ | prefix::rest => match RegistrySource.strip prefix xs with
+   | Some (text::tail) => match ScalarSource.decimal text, operands rest tail with
+     | Some n,Some ns => Some (n::ns) | _,_ => None end
+   | _ => None end
+ end.
 Definition parse_call (ts : list string) : option registry_program :=
- match ts with
- | ["const";"registry";"=";"r";"orelse";"return";null_code;";";"if";"(";"registry";".";"active";")";"return";busy_code;";";"if";"(";"!";"known";"(";"tag";")";")";"return";tag_code;";";"const";"slot";":";"state";".";"Slot";"=";"switch";"(";"tag";")";"{";"1";"=>";".";"mcp";",";"9";"=>";".";"rest";",";"else";"=>";"return";unsupported_code;",";"}";";";"const";"reply";"=";"state";".";"begin";"(";"Endpoint";",";"registry";".";"*";",";"slot";")";";";"if";"(";"reply";".";"status";"!=";"0";")";"return";"reply";".";"status";";";"const";"endpoint";"=";"reply";".";"selected";"orelse";"return";selected_code;";";"registry";".";"*";"=";"reply";".";"next";";";"defer";"registry";".";"*";"=";"state";".";"finish";"(";"Endpoint";",";"registry";".";"*";")";";";"if";"(";"bytes";"==";"null";"and";"len";"!=";"0";")";"return";span_code;";";"const";"status";"=";"endpoint";".";"callback";"(";"endpoint";".";"context";",";"bytes";",";"len";")";";";"return";"state";".";"sanitize";"(";"status";")";";"] =>
-   match ScalarSource.decimal null_code, ScalarSource.decimal busy_code,
-         ScalarSource.decimal tag_code, ScalarSource.decimal unsupported_code,
-         ScalarSource.decimal selected_code, ScalarSource.decimal span_code with
-   | Some a,Some b,Some c,Some d,Some e,Some f => Some (CallProgram a b c d e f)
-   | _,_,_,_,_,_ => None end
+ match operands [["const";"registry";"=";"r";"orelse";"return"];
+[";";"if";"(";"registry";".";"active";")";"return"];
+[";";"if";"(";"!";"known";"(";"tag";")";")";"return"];
+[";";"const";"slot";":";"state";".";"Slot";"=";"switch";"(";"tag";")";"{";"1";"=>";".";"mcp";",";"9";"=>";".";"rest";",";"else";"=>";"return"];
+[",";"}";";";"const";"reply";"=";"state";".";"begin";"(";"Endpoint";",";"registry";".";"*";",";"slot";")";";";"if";"(";"reply";".";"status";"!=";"0";")";"return";"reply";".";"status";";";"const";"endpoint";"=";"reply";".";"selected";"orelse";"return"];
+[";";"registry";".";"*";"=";"reply";".";"next";";";"defer";"registry";".";"*";"=";"state";".";"finish";"(";"Endpoint";",";"registry";".";"*";")";";";"if";"(";"bytes";"==";"null";"and";"len";"!=";"0";")";"return"];
+[";";"const";"status";"=";"endpoint";".";"callback";"(";"endpoint";".";"context";",";"bytes";",";"len";")";";";"return";"state";".";"sanitize";"(";"status";")";";"]] ts with
+ | Some [a;b;c;d;e;f] => Some (CallProgram a b c d e f)
  | _ => None end.
 (* Imported names, callback ABI and surrounding declarations are closed.
    Create/destroy/register/unregister are scoped as checked source closure,
@@ -81,10 +93,11 @@ Definition parse_registry (bytes : list nat) : option registry_program :=
 Record header_program := HeaderProgram { initial_state : nat; maximum_state : nat; final_state : nat }.
 Definition header_canonical := HeaderProgram 0 1 1.
 Definition parse_scan (ts : list string) : option header_program :=
- match ts with
- | ["var";"state";":";"u8";"=";initial;";";"for";"(";"bytes";")";"|";"b";"|";"{";"const";"result";"=";"idris2_trampoline";"(";"Proven_SafeHeader_ByteKernel_headerStep";"(";"bits8";".";"encode";"(";"state";")";",";"bits8";".";"encode";"(";"b";")";")";")";";";"const";"next";"=";"try";"bits8";".";"decode";"(";"result";")";";";"if";"(";"next";">";maximum;")";"return";"error";".";"InvalidRefcResult";";";"state";"=";"next";";";"}";"return";"state";"==";final;";"] =>
-   match ScalarSource.decimal initial,ScalarSource.decimal maximum,ScalarSource.decimal final with
-   | Some i,Some m,Some f => Some (HeaderProgram i m f) | _,_,_ => None end
+ match operands [["var";"state";":";"u8";"="];
+[";";"for";"(";"bytes";")";"|";"b";"|";"{";"const";"result";"=";"idris2_trampoline";"(";"Proven_SafeHeader_ByteKernel_headerStep";"(";"bits8";".";"encode";"(";"state";")";",";"bits8";".";"encode";"(";"b";")";")";")";";";"const";"next";"=";"try";"bits8";".";"decode";"(";"result";")";";";"if";"(";"next";">"];
+[")";"return";"error";".";"InvalidRefcResult";";";"state";"=";"next";";";"}";"return";"state";"=="];
+[";"]] ts with
+ | Some [i;m;f] => Some (HeaderProgram i m f)
  | _ => None end.
 Definition parse_header (bytes : list nat) : option header_program :=
  match tokenize bytes with
@@ -205,23 +218,27 @@ Definition encode (s : bool) : nat := if s then 1 else 0.
 Fixpoint fold (step : bool -> nat -> bool) (s : bool) (bytes : list nat) : bool :=
   match bytes with [] => s | b::bs => fold step (step s b) bs end.
 Lemma scan_fold : forall (step : bool -> nat -> bool) foreign,
-  (forall s b, foreign (encode s) b = Some (encode (step s b))) ->
-  forall bs s, scan header_canonical foreign (encode s) bs = Some (encode (fold step s bs)).
+  (forall s b, b < 256 -> foreign (encode s) b = Some (encode (step s b))) ->
+  forall bs s, Forall (fun b => b < 256) bs ->
+  scan header_canonical foreign (encode s) bs = Some (encode (fold step s bs)).
 Proof.
-  intros step foreign H bs. induction bs as [|b bs IH]; intro s; [reflexivity|].
-  simpl. rewrite H. destruct (step s b) eqn:E; simpl; [apply (IH true)|apply (IH false)].
+  intros step foreign H bs. induction bs as [|b bs IH]; intros s Hbytes; [reflexivity|].
+  inversion Hbytes as [|b' bs' Hb Htail]; subst.
+  simpl. rewrite (H s b Hb). destruct (step s b) eqn:E; simpl;
+    [apply (IH true Htail)|apply (IH false Htail)].
 Qed.
 Theorem header_source_fold : forall bytes step foreign bs,
   check_header bytes = true ->
-  (forall s b, foreign (encode s) b = Some (encode (step s b))) ->
+  Forall (fun b => b < 256) bs ->
+  (forall s b, b < 256 -> foreign (encode s) b = Some (encode (step s b))) ->
   exists p, parse_header bytes = Some p /\
     header_run p foreign bs = Some (fold step false bs).
 Proof.
-  intros bytes step foreign bs Hsource Hcall. exists header_canonical.
+  intros bytes step foreign bs Hsource Hbytes Hcall. exists header_canonical.
   split; [now apply header_bound|]. unfold header_run.
   change (match scan header_canonical foreign (encode false) bs with
     | Some state => Some (Nat.eqb state 1) | None => None end = Some (fold step false bs)).
-  rewrite (scan_fold step foreign Hcall). destruct (fold step false bs); reflexivity.
+  rewrite (scan_fold step foreign Hcall bs false Hbytes). destruct (fold step false bs); reflexivity.
 Qed.
 Fixpoint read_count (p : header_program) (step : nat -> nat -> option nat)
   (state : nat) (bytes : list nat) : nat := match bytes with
