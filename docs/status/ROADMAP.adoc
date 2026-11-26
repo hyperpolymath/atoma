@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: CC-BY-SA-4.0
 // Copyright (c) Jonathan D.A. Jewell <j.d.a.jewell@open.ac.uk>
 = Atoma roadmap
-:revdate: 2026-11-24
+:revdate: 2026-11-25
 
 The active link:../plan/ULTRAPLAN.adoc[v1 plan] owns milestone acceptance and
 estimates. Atoma is experimental. There is no overall readiness percentage.
@@ -39,25 +39,27 @@ The scalar MVP merged in PR #30 at `c59fe78fceeaf284c0beab96300c9ad392150598`.
 The next theory slice has checked universal decoder models in strict safe
 Agda, full safe Cubical, Lean and Coq/coqchk; see
 link:../theory/UNIVERSAL-DECODER.adoc[the statements, hosted evidence and limits].
-These independent models do not yet establish cross-model correspondence or
-prove the real decoder source. UAA PR #22 separately checks its total Idris2
-state contract and existing native campaign, with ownership/lifetime assumptions
-explicit. Its source refinement and Agda/Lean/Coq state witnesses remain open.
+PR #32 subsequently bound the actual decoder/import and registry-kernel source.
+PR #33 added the original wrapper call/scan profiles and an explicit raw-alias
+counterexample. Its complete hosted campaign passed at head
+`6823ff07297ca015a2461c00adc2ee2215633d1a` in
+https://github.com/hyperpolymath/atoma/actions/runs/45580361419[run 45580361419],
+including fresh Proven/UAA native checks and independent ECHIDNA/Coq replay.
+Cross-kernel correspondence and native pointer/lifetime premises remain open.
 
-* Proven: prove decoder acceptance iff the entire 64-bit word is a canonical
-  byte encoding, then bind the actual raw-word decoder source and its encoder
-  dependency. Immediate tagged words are not allocated objects; pointer-carrier
-  correspondence and later buffer leases remain separate obligations.
-* UAA: prove state-preserving refusals, selected callback/context identity,
-  busy-state framing and restoration after a normally returning callback.
-  State the serialized access and borrowed-lifetime preconditions explicitly.
-* Extend checked source interpretation to these operations, with an explicit
-  memory/alias counterexample before admitting pointer-bearing effects. The
-  ECHIDNA/coqchk path does not establish general Zig/compiler refinement.
+* Proven: qualify the actual public pointer-to-slice entry against bounded
+  borrowed spans, null refusal and backend effects. Immediate tagged words are
+  not allocated objects; pointer-carrier correspondence remains separate.
+* UAA: qualify retained callback/context lifetimes, shared registrations,
+  unregister and idle/busy destruction against the actual Zig declarations.
+* The shared heap/permission protocol and both source-bound pilot extensions are
+  implemented by PR #34; its exact head must pass the full required campaign.
+  See link:../decisions/ATOMA-HEAP-BOUNDARY.adoc[acceptance and remaining premises].
 * Second-language transfer spike before choosing the full sibling sequence.
 
-Store, loops, permissions, compiler refinement and the complete required
-kernel chain remain open. A passing scoped gate is not production readiness.
+General store/loop/permission refinement, native allocation authority, compiler
+refinement and the complete required kernel chain remain open. A passing scoped
+gate is not production readiness.
 
 == Dogfooding status
 

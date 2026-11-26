@@ -84,17 +84,33 @@ The manifests in `verification/proofs/` declare exact checked/quarantined scope.
 See link:../plan/ULTRAPLAN.adoc[the stable task register] and
 link:../audit/2026-11-07-soundness-sprint.adoc[the repair evidence].
 
-== Source-binding milestone (under qualification)
+== Source-binding and conditional wrapper milestones
 
 The decoder/import and registry-kernel source capsules passed their independent
 Coq interpretation, assumption audits, coqchk and rejecting source mutations in
 https://github.com/hyperpolymath/atoma/actions/runs/45527831101[run 45527831101]
 at head 1cc383c1ff2e747cb96d13a49638326ee75823f7. Registry compatible Agda,
-Lean and full Cubical witnesses passed in the same run. Combined consumer and
-ECHIDNA qualification was still pending when this entry was prepared.
+Lean and full Cubical witnesses passed in the same run. Subsequent complete
+qualification, including the actual wrapper call/scan profiles, passed at
+head 6823ff07297ca015a2461c00adc2ee2215633d1a in
+https://github.com/hyperpolymath/atoma/actions/runs/45580361419[run 45580361419].
+Downloaded evidence includes fresh native consumers, verified ECHIDNA results,
+independent regenerated audits and coqchk; all 31 wrapper replay files matched
+their evidence hashes. Native ownership and foreign-call premises remain open.
 
 The existing proof-policy claims table and grades above are not promoted by
 these observations. Cross-kernel statement correspondence is BRIDGE-PENDING.
 See link:../decisions/ATOMA-BOUNDARY-SOURCE.adoc[the source-profile decision]
 for the exact interpretation, compiler, wrapper and ownership boundaries.
+
+== Heap/public-boundary extension
+
+PR #34 adds a ghost region/permission protocol, original public header-entry
+interpretation and source-bound registry destruction/retention effects.
+Compatible Agda, Lean, Coq/coqchk, full Cubical, rejecting operational mutations
+and fresh native consumer campaigns are required. The exact PR head and its
+artifacts own the execution status; implementation alone is not a pass.
+The policy claims table is not promoted by these additions.
+See link:../decisions/ATOMA-HEAP-BOUNDARY.adoc[scope and native correspondence
+premises]. All hand re-proof correspondence remains BRIDGE-PENDING.
 

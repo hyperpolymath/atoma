@@ -1,0 +1,77 @@
+// SPDX-License-Identifier: CC-BY-SA-4.0
+= Heap permissions and actual public boundaries
+:revdate: 2026-11-25
+
+== Shared contract
+
+The region store maps a logical region identity to vacant storage or a live byte
+snapshot with retained-reference and active-reader counts. Acquisition requires
+vacancy; release requires zero retained references and readers. Borrow/return
+preserves bytes; a write during an active read borrow is refused by the protocol.
+These counts are ghost obligations, not new fields or runtime checks in either
+consumer ABI. A caller cannot obtain allocation authority merely by constructing
+a Nat region identity or wrapping a copyable pointer in a linear type.
+
+Compatible Agda, Lean, Coq/coqchk and full Cubical check the scoped laws. The
+independent hand re-proofs remain BRIDGE-PENDING. No proof-witness grade or
+cross-kernel transport is inferred from successful compilation alone.
+
+== Proven public entry
+
+The profile admits the original complete core.zig and main_refc.zig modules.
+Reviewed, fixed byte prefixes and suffixes close the surrounding declarations,
+imports, result layout, status constants and error storage. The original public
+entry body and exported forwarder are parsed between those contexts; the source
+cannot select its own context. This is intentionally restrictive: a change
+outside the admitted body must be reviewed and re-qualified.
+
+The interpretation covers null refusal before backend invocation, exact
+pointer-to-slice span forwarding, backend status mapping and the thread-local
+error effect. The actual header_refc.zig source is separately admitted. A native
+dispatch double observes the unchanged public function; the real Idris-backed
+export is still exercised independently. Those evidence categories remain
+distinct.
+
+The caller owes live readable memory, pointer-to-region correspondence, physical
+separation where required, usize/address representability and synchronous input
+lifetime. Non-nullness is not a bound or liveness proof. Backend heap effects
+remain in the semantics; preservation requires an explicit frame premise.
+
+== UAA retained lifetimes
+
+Registration retains callback/code and optional context references across calls.
+Multiple slots referencing one region contribute multiple retentions. Removing
+one registration releases only that registration's obligations. Idle destroy
+releases the registry allocation and detaches its registrations; it does not
+destroy callback/context allocations.
+
+The source interpretation derives the actual null/busy/free sequence from the
+closed registry module. Source-facing theorems require a live mapped allocation;
+idle free additionally requires ownership authority and accounted retentions.
+A distinct logical region is only physically separate under the explicit
+native correspondence premise. No stale pointer is dereferenced in tests.
+
+The existing raw-alias counterexample remains part of qualification. Serialized
+access, valid retained callback/context lifetimes, input readability and normal,
+frame-preserving callback return remain obligations of native callers.
+
+== Required evidence and remaining work
+
+The required soundness context depends on both the existing replay campaign and
+the new heap/public-boundary campaign. Both use fresh pinned consumers and
+native checks, original-source capsules, ECHIDNA results, regenerated Coq audits,
+coqchk and input-hash rechecks. Missing, failed or skipped qualification cannot
+produce a successful soundness context. Operational proof mutations, native
+source mutants and zero-exit compiler diagnostics must be refused.
+
+Exact-head results are recorded in
+https://github.com/hyperpolymath/atoma/pull/34[the implementation PR], alongside
+https://github.com/hyperpolymath/proven/pull/249[Proven] and
+https://github.com/hyperpolymath/unified-api-adapter/pull/25[UAA].
+The presence of this decision is not a qualification receipt.
+
+Receipts remain INCOMPLETE. General Zig parsing/compiler refinement, native
+allocation authority, arbitrary-pointer validity, concurrent/non-local effects,
+foreign-call contracts and cross-kernel statement transport are not discharged
+by this bounded slice. Checked generation handles would be a separate,
+versioned Idris2 ABI decision; this work preserves the current ABI.

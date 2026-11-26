@@ -92,6 +92,8 @@ jobs:
         run: bash scripts/atoma-registry-proof-gate.sh
       - name: Borrowed wrapper theory and cleanup control
         run: bash scripts/atoma-wrapper-proof-gate.sh
+      - name: Heap permissions and bounded-span theory
+        run: bash scripts/atoma-heap-proof-gate.sh
       - name: Preserve canonical repository map for review
         run: |
           bash scripts/gen-repo-map.sh .
@@ -103,8 +105,55 @@ jobs:
           path: build/scalar-proof-evidence/
           if-no-files-found: error
 
-  soundness:
-    name: Atoma soundness gate
+  heap_source:
+    name: Public boundary and lifetime source
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - name: Provision independent Coq checker
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends coq=8.18.0+dfsg-1build2
+      - name: Actual public header entry
+        run: bash scripts/atoma-public-header-source-gate.sh
+      - name: Actual registry destruction and retained regions
+        if: success() || failure()
+        run: bash scripts/atoma-registry-lifetime-source-gate.sh
+      - uses: actions/upload-artifact@v7.0.2
+        if: always()
+        with:
+          name: heap-source-evidence-${{ github.sha }}
+          path: build/heap-source-evidence/
+          if-no-files-found: error
+
+  heap_consumers:
+    name: Heap lifetime consumer replay
+    needs: [scalar, heap_source]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - name: Provision pinned proof tools
+        run: bash scripts/atoma-ci-toolchain.sh
+      - name: Provision independent replay tools
+        run: bash scripts/atoma-ci-replay-toolchain.sh
+      - name: Fresh native consumers and source-bound lifetime replay
+        run: bash scripts/atoma-consumer-heap-gate.sh
+      - uses: actions/upload-artifact@v7.0.2
+        if: always()
+        with:
+          name: heap-consumer-evidence-${{ github.sha }}
+          path: build/atoma-evidence/heap-consumers/
+          if-no-files-found: error
+          retention-days: 30
+
+  core_soundness:
+    name: Existing source and replay gates
     needs: [scalar, word_source, wrapper_source]
     runs-on: ubuntu-24.04
     timeout-minutes: 45
@@ -128,6 +177,21 @@ jobs:
             examples/atoma/frame-v1/witness/
           if-no-files-found: error
           retention-days: 30
+
+  soundness:
+    name: Atoma soundness gate
+    needs: [core_soundness, heap_consumers]
+    if: ${{ always() }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    steps:
+      - name: Require both existing and heap-boundary qualification
+        env:
+          CORE_RESULT: ${{ needs.core_soundness.result }}
+          HEAP_RESULT: ${{ needs.heap_consumers.result }}
+        run: |
+          test "$CORE_RESULT" = success
+          test "$HEAP_RESULT" = success
 
   gate:
     name: CI/gate
