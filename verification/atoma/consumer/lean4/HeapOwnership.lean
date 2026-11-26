@@ -47,28 +47,38 @@ theorem writeBorrowedRefused (bytes old : List Nat) (retained readers : Nat) :
     cellStep (writeBytes bytes) (live old retained (readers+1)) = none := rfl
 theorem failedPreserves (op : Operation) (h : Heap) (addr key : Nat)
     (refused : cellStep op (h addr) = none) : (run op h addr).2 key = h key := by
-  simp only [run, refused]
+  unfold run; rw [refused]
 theorem borrowReturnCell (bytes : List Nat) (retained readers : Nat) :
     thenCell borrowRead returnRead (live bytes retained readers) = some (live bytes retained readers) := rfl
 theorem borrowPreservesBytes (bytes : List Nat) (retained readers : Nat) :
     bytesAfter borrowRead (live bytes retained readers) = readBytes (live bytes retained readers) := rfl
 theorem releaseRemovesOwned (h : Heap) (addr : Nat) (bytes : List Nat)
     (owned : h addr = live bytes 0 0) : (run release h addr).2 addr = vacant := by
-  simp only [run, owned, cellStep, replace, if_pos rfl]
+  unfold run; rw [owned]
+  show (if addr = addr then vacant else h addr) = vacant
+  exact if_pos rfl
 theorem releaseFramesOther (h : Heap) (addr key : Nat) (bytes : List Nat)
     (owned : h addr = live bytes 0 0) (other : key ≠ addr) : (run release h addr).2 key = h key := by
-  simp only [run, owned, cellStep, replace, if_neg other]
+  unfold run; rw [owned]
+  show (if key = addr then vacant else h key) = h key
+  exact if_neg other
 theorem acquireLiveRefused (bytes old : List Nat) (retained readers : Nat) :
     cellStep (acquire bytes) (live old retained readers) = none := rfl
 
 def borrowedSpan (offset count : Nat) (bytes : List Nat) : List Nat :=
   (bytes.drop offset).take count
-theorem spanLength (offset count : Nat) (bytes : List Nat)
-    (fits : offset+count ≤ bytes.length) : (borrowedSpan offset count bytes).length = count := by
-  rw [borrowedSpan, List.length_take, List.length_drop]
-  apply Nat.min_eq_left
-  apply Nat.le_sub_of_add_le
-  simpa only [Nat.add_comm] using fits
+-- Structural proof, mirroring the Agda clauses: library simp lemmas would
+-- import propext into the receipt.
+theorem spanLength : ∀ (offset count : Nat) (bytes : List Nat),
+    offset+count ≤ bytes.length → (borrowedSpan offset count bytes).length = count
+  | 0, 0, _, _ => rfl
+  | 0, _+1, [], fits => absurd fits (Nat.not_succ_le_zero _)
+  | 0, count+1, _ :: bytes, fits =>
+      congrArg Nat.succ (spanLength 0 count bytes (Nat.le_of_succ_le_succ fits))
+  | _+1, _, [], fits => absurd fits (Nat.not_le_of_gt (Nat.lt_of_lt_of_le (Nat.succ_pos _) (Nat.le_add_right _ _)))
+  | offset+1, count, _ :: bytes, fits =>
+      spanLength offset count bytes
+        (Nat.le_of_succ_le_succ (Nat.succ_add offset count ▸ fits))
 
 #print axioms releaseBorrowedRefused
 #print axioms releaseRetainedRefused

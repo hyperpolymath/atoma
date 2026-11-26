@@ -105,7 +105,7 @@ Definition finish_call p result after tls bytes := match result with
    The physical read lease must stay valid and immutable throughout the call;
    a backend may not retain the span. Final heap equality cannot establish that
    temporal condition: a native backend could write and restore between reads. *)
-Definition run p present (h : HeapOwnership.heap) addr offset count tls
+Definition run p (present : bool) (h : HeapOwnership.heap) addr offset count tls
   (backend : backend_fn) :=
   if present then
     match h addr with

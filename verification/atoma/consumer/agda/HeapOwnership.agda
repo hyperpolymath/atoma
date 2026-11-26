@@ -133,9 +133,15 @@ drop zero xs = xs
 drop (suc n) [] = []
 drop (suc n) (_ ∷ xs) = drop n xs
 infix 4 _≤_
-data _≤_ : Nat → Nat → Set where
-  z≤n : ∀ {n} → zero ≤ n
-  s≤s : ∀ {m n} → m ≤ n → suc m ≤ suc n
+-- A computed order, not an indexed family: Cubical-compatible matching then
+-- needs no injectivity of suc.
+data ⊤ : Set where
+  tt : ⊤
+data ⊥ : Set where
+_≤_ : Nat → Nat → Set
+zero ≤ n = ⊤
+suc m ≤ zero = ⊥
+suc m ≤ suc n = m ≤ n
 
 -- Machine-usize/address representability is an additional native premise.
 borrowed-span : Nat → Nat → List Nat → List Nat
@@ -145,6 +151,6 @@ span-length : ∀ offset count bytes → offset + count ≤ length bytes →
   length (borrowed-span offset count bytes) ≡ count
 span-length zero zero bytes fits = refl
 span-length zero (suc count) [] ()
-span-length zero (suc count) (b ∷ bytes) (s≤s fits) = cong suc (span-length zero count bytes fits)
+span-length zero (suc count) (b ∷ bytes) fits = cong suc (span-length zero count bytes fits)
 span-length (suc offset) count [] ()
-span-length (suc offset) count (b ∷ bytes) (s≤s fits) = span-length offset count bytes fits
+span-length (suc offset) count (b ∷ bytes) fits = span-length offset count bytes fits

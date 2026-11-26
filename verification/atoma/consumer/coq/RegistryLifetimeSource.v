@@ -120,7 +120,7 @@ Theorem source_idle_release : forall bytes,
     forall key, store (destroy_run p true s h addr) key =
       detach s (snd (HeapOwnership.run HeapOwnership.Release h addr)) key.
 Proof. intros bytes H; exists canonical; split; [now apply accepted_program|].
-  intros; now apply idle_release. Qed.
+  intros s h addr payload Hidle Hlive _; now apply (idle_release canonical s h addr payload). Qed.
 Theorem source_busy_preserves : forall bytes,
   check bytes = true -> exists p, parse bytes = Some p /\
   forall s h addr payload retained readers,

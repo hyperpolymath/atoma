@@ -16,7 +16,12 @@ sources=(verification/atoma/consumer/agda/HeapOwnership.agda
 for source in "${sources[@]:0:4}"; do cp "$root/$source" "$work/"; cmp "$root/$source" "$work/$(basename "$source")"; done
 (cd "$root"; sha256sum -c "$out/source-inputs.sha256") > "$out/snapshot-recheck.txt"
 cd "$work"
-sha256sum HeapOwnership.agda HeapOwnershipCubical.agda HeapOwnership.lean HeapOwnership.v > "$out/checked-inputs.sha256"
+# Check the staged copies against the ORIGINAL digests, not a fresh hash of
+# whatever was staged: a transient edit restored before the recheck must fail.
+while read -r digest path; do
+  [[ $path == scripts/* ]] || printf '%s  %s\n' "$digest" "${path##*/}"
+done < "$out/source-inputs.sha256" > "$out/checked-inputs.sha256"
+sha256sum -c "$out/checked-inputs.sha256" > "$out/staged-recheck.txt"
 agda --safe --without-K --cubical-compatible --double-check --warning=error HeapOwnership.agda > "$out/agda.txt" 2>&1
 lean HeapOwnership.lean > "$out/lean.txt" 2>&1
 awk '
@@ -35,6 +40,8 @@ BEGIN {
 END {if (count != 10) exit 1}' "$out/lean.txt"
 coqc -q HeapOwnership.v > "$out/coq.txt" 2>&1
 [[ $(grep -c '^Closed under the global context$' "$out/coq.txt") == 10 ]]
+# A zero-exit build may still print warnings; accept only the ten audit lines.
+if grep -qv '^Closed under the global context$' "$out/coq.txt"; then echo 'FAIL: Coq diagnostics' >&2; exit 1; fi
 if grep -q '^Axioms:' "$out/coq.txt"; then echo 'FAIL: heap proof axioms' >&2; exit 1; fi
 coqchk -silent -Q . '' HeapOwnership > "$out/coqchk.txt" 2>&1
 agda --safe --cubical --double-check --warning=error HeapOwnershipCubical.agda > "$out/cubical.txt" 2>&1
